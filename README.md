@@ -11,3 +11,6 @@ I found the sex with the highest rings
 I then found the row with the highest rings and the percentage of abalons with higher viscera weight than
 shell weight
 
+For part d. I split the data by sex then computed the correlation between each weight column and the rings 
+for each sex and since all these attributes were given as columns, I transposed the table to get
+rows as the sex and columns as the weight
