@@ -14,3 +14,6 @@ shell weight
 For part d. I split the data by sex then computed the correlation between each weight column and the rings 
 for each sex and since all these attributes were given as columns, I transposed the table to get
 rows as the sex and columns as the weight
+
+For part d. I calculated the p-values for all 3 sex pairs using the t-test analysis and found that
+all are significantly different since p < 0.5 in the 3 cases.
