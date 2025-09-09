@@ -13,12 +13,14 @@ data <- read.table ("abalone.data", header = FALSE, sep = ",")
 head(data)
 ```
 
-### Part b.  number of observations belonging to each sex.
+
+### Part b. Number of observations belonging to each sex.
 
 ```{r}
 table(data[, 1])
 sex_observations <- table(data[, 1])
 ```
+
 
 ### Part c. 
 1. weight with the highest correlation to rings
@@ -31,7 +33,8 @@ top_weight
 
 Column 8 (V8) is the Abalon's ShellWeight
 
-2. sex of that weight with the highest correlation
+
+2. Sex of that weight with the highest correlation
 
 ```{r}
 sex_groups <- split(data, data[, 1])
@@ -41,3 +44,58 @@ top_sex
 ```
 
 Infants (I) have the weight with the highest correlation
+
+
+ 3. Weight of abalone with highest rings
+
+```{r}
+max_rings_row <- data[which.max(data[, 9]), ]
+abalone_max_rings <- max_rings_weights <- max_rings_row[, 5:8]
+abalone_max_rings
+```
+
+The weights of the abalone with the most rings is listed above.
+
+
+4. Percentage of abalones with a viscera weight larger than shell weight?
+
+```{r}
+count <- sum(data[, 7] > data[, 8]) # rows with V7 > V8
+total <- nrow(data) # all rows
+print(percentage <- (count / total) * 100) # percentage calculation
+```
+
+Percentage of abalones with viscera weight larger than shell weight is 6.511%
+
+
+### Part d. Table of correlations
+Working without table column headers is very annoying, I added the table headers
+
+
+```{r}
+colnames(data) <- c("Sex", "Length", "Diameter", "Height", 
+                    "WholeWeight", "ShuckedWeight", 
+                    "VisceraWeight", "ShellWeight", "Rings")
+
+
+sex_groups <- split(data, data$Sex) 
+cor_table <- sapply(sex_groups, function(df) {
+  sapply(df[, 5:8], function(x) cor(x, df$Rings))
+}) # Compute correlations: rows = sexes, columns = weights
+
+# Transpose to make rows = sexes, columns = weights
+print(cor_table <- t(cor_table))
+```
+The correlations of weights and rings for each sex is above.
+
+
+### Part e. Statistical t test
+
+```{r}
+p_FM <- t.test(data$Rings[data$Sex == "F"], data$Rings[data$Sex == "M"])$p.value
+p_FI <-t.test(data$Rings[data$Sex == "F"], data$Rings[data$Sex == "I"])$p.value
+p_MI <-t.test(data$Rings[data$Sex == "M"], data$Rings[data$Sex == "I"])$p.value
+c(p_FM, p_FI, p_MI)
+```
+
+All p-values of the t-test are < 0.5, which means there is a sgnificant diffrence in # of rings between all sexes and each other.
