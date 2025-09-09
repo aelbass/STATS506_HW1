@@ -1,0 +1,43 @@
+---
+title: "HW1"
+format: html
+editor: visual
+---
+
+## Problem 1
+
+### Part a. Import abalone.data file into a data frame
+
+```{r}
+data <- read.table ("abalone.data", header = FALSE, sep = ",")
+head(data)
+```
+
+### Part b.  number of observations belonging to each sex.
+
+```{r}
+table(data[, 1])
+sex_observations <- table(data[, 1])
+```
+
+### Part c. 
+1. weight with the highest correlation to rings
+
+```{r}
+weight_cor <- sapply(data[, 5:8], function(x) cor(x, data[, 9]))
+top_weight <- names(weight_cor)[which.max(weight_cor)]
+top_weight
+```
+
+Column 8 (V8) is the Abalon's ShellWeight
+
+2. sex of that weight with the highest correlation
+
+```{r}
+sex_groups <- split(data, data[, 1])
+sex_cor <- sapply(sex_groups, function(df) cor(df[[top_weight]], df[, 9]))
+top_sex <- names(sex_cor)[which.max(sex_cor)]
+top_sex
+```
+
+Infants (I) have the weight with the highest correlation
