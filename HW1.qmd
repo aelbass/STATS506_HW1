@@ -99,3 +99,68 @@ c(p_FM, p_FI, p_MI)
 ```
 
 All p-values of the t-test are < 0.5, which means there is a sgnificant diffrence in # of rings between all sexes and each other.
+
+
+## Problem 2
+
+### Part a. Import data file into a data frame
+
+```{r}
+data2 <- read.csv("/Users/bassiouny/RLearning/506practice/data_prob2.csv")
+head(data2)
+```
+
+
+### Part b. Change header names
+
+```{r}
+names(data2) <- c("ID", "Age", "# Household Individuals", "State", "Currency", "$/last week", "$/grocery", "$/dinning", "$/miscellaneous", "# of outings", "Alcohol Included", "# Food assistance programs")
+```
+
+I changed up the header names as seen above.
+
+
+### Part c. Restrict the data to those paying in US dollars (USD).
+
+```{r}
+nrow(data2)
+data_usd <- data[data2$Currency == "USD", ]
+sum(data2$Currency == "USD")
+```
+
+The analysis shows total number of observations/rows is 262 and total number of observations with USD as the payment is 232. 
+
+
+### Part d.
+
+```{r}
+
+```
+
+
+### Part e.
+
+```{r}
+
+```
+
+
+### Part f.
+
+```{r}
+
+```
+
+
+### Part g.
+
+```{r}
+
+```
+
+
+### Part h.
+
+```{r}
+
+```
