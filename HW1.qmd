@@ -105,9 +105,11 @@ All p-values of the t-test are < 0.5, which means there is a sgnificant diffrenc
 
 ### Part a. Import data file into a data frame
 
+
 ```{r}
 data2 <- read.csv("/Users/bassiouny/RLearning/506practice/data_prob2.csv")
 head(data2)
+nrow(data2)
 ```
 
 
@@ -123,44 +125,73 @@ I changed up the header names as seen above.
 ### Part c. Restrict the data to those paying in US dollars (USD).
 
 ```{r}
+data_usd <- data2[data2$Currency == "USD", ]
 nrow(data2)
-data_usd <- data[data2$Currency == "USD", ]
 sum(data2$Currency == "USD")
 ```
 
-The analysis shows total number of observations/rows is 262 and total number of observations with USD as the payment is 232. 
+The analysis shows total number of observations/rows is 262 and total number of observations with USD as the payment is 230. 
 
+### For all the next parts d-h, I am leaving any empty entries in any rows because other correlations can be made using that data.
 
-### Part d.
+### Part d. Age clean up
 
-```{r}
-
-```
-
-
-### Part e.
+I cleaned up age to exclude entries >= 16 years
 
 ```{r}
-
+age_clean <- data_usd[data_usd$Age >= 16, ]
+nrow(data_usd)
+nrow(age_clean)
 ```
 
+People under the age of 16 will usually not buy a lot of groceries for their household using their own money. The total number of entries after is 217.
 
-### Part f.
+
+### Part e. State clean up
+
+I am filtering out any states that was noted in just one observation
 
 ```{r}
-
+table(age_clean$State)
+state_counts <- table(age_clean$State)
+state_clean <- age_clean[age_clean$State %in% names(state_counts[state_counts > 1]), ]
+nrow(state_clean)
 ```
+When I cleaned up the states, I was left with 201 entries with states mentioned more than once.
 
+### Part f. The four variables related to food expenditures.
 
-### Part g.
+First, any entries in the negative were removed
 
 ```{r}
-
+negative_clean <- state_clean[!(state_clean[,6] < 0 | state_clean[,7] < 0 | state_clean[,8] < 0 | state_clean[,9] < 0), ]
+nrow(negative_clean)
 ```
 
+After removing all entries with a negative value, I was left with 170 entries.
 
-### Part h.
+
+Now I want to remove any rows where $ spent on anything was larger than total $ spent on food expenditures (column 6).
+
 
 ```{r}
-
+expenditures_clean <- negative_clean[rowSums(negative_clean[,7:9] > negative_clean[,6]) == 0, ]
+nrow(expenditures_clean)
 ```
+
+Now I am left with 83 rows where the amount of spending in any category is less than the total amount of money spent.
+
+### Part g. # of outings
+
+I am going to remove any entries where # of outings were more than 15 times last week. I think this is abnormal and might screw up the analysis.
+
+```{r}
+outings_clean <- expenditures_clean[expenditures_clean[,10] <= 15, ]
+nrow(outings_clean)
+```
+
+Now we are left with 81 entries.
+
+### Part h. # of observations left
+
+From an initial data set of 262 observations to a final row count of 81 after clean up.
