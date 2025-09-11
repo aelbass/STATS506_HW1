@@ -195,3 +195,78 @@ Now we are left with 81 entries.
 ### Part h. # of observations left
 
 From an initial data set of 262 observations to a final row count of 81 after clean up.
+
+
+## Problem 3
+
+### Part a. write nextCollatz function
+
+```{r}
+#' nextCollatz function
+#'
+#' Given a positive integer n,
+#' - If n is even, the next number is n / 2
+#' - If n is odd, the next number is 3 * n + 1
+#'
+#' @param n A positive integer
+#' @return The next positive integer in the Collatz sequence
+#' @export
+nextCollatz <- function(n) {
+  # Check for valid input
+  if (!is.numeric(n) || length(n) != 1 || n <= 0 || n != floor(n)) {
+    message("Invalid input: must be a single positive integer. Returning NA.")
+    return(NA)
+  }
+  
+  # Compute next Collatz number
+  if (n %% 2 == 0) {
+    return(n / 2)
+  } else {
+    return(3 * n + 1)
+  }
+}
+nextCollatz(5)
+nextCollatz(16)
+nextCollatz(8)
+nextCollatz(-8)
+```
+
+As can be seen, all entries give a right output and when the input was a negative entry, invalid input message was generated. 
+
+
+### Part a. write a Collatz sequence function
+
+```{r}
+#' Collatz sequence for a given number
+#'
+#' Given a positive integer n, this function computes the entire Collatz sequence
+#' starting at n and ending at 1.
+#'
+#' @param n A positive integer
+#' @return A list with two elements:
+#'   \describe{
+#'     \item{sequence}
+#'     \item{length}
+#'   }
+#' @export
+collatzSequence <- function(n) {
+  if (!is.numeric(n) || length(n) != 1 || n <= 0 || n != floor(n)) {
+    message("Invalid input: must be a single positive integer. Returning NA.")
+    return(list(sequence = NA, length = NA))
+  }
+  
+  seq <- n
+  
+  while (tail(seq, 1) != 1) {
+    next_val <- nextCollatz(tail(seq, 1))
+    seq <- c(seq, next_val)
+  }
+  
+  # Return list with sequence and its length
+  return(list(sequence = seq, length = length(seq)))
+}
+
+collatzSequence(5)
+collatzSequence(19)
+collatzSequence(-5)
+```
