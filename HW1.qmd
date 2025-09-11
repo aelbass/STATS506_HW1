@@ -270,3 +270,36 @@ collatzSequence(5)
 collatzSequence(19)
 collatzSequence(-5)
 ```
+
+
+### Part c. shortest and longest Collatz sequence
+
+```{r}
+start_values <- 100:500
+sequence_lengths <- numeric(length(start_values))
+
+for (i in seq_along(start_values)) {
+  seq_info <- collatzSequence(start_values[i])
+  sequence_lengths[i] <- seq_info$length
+}
+
+#  sequence lengths
+min_length <- min(sequence_lengths)
+max_length <- max(sequence_lengths)
+
+# In case of ties, select the lowest starting value
+shortest_start <- start_values[which(sequence_lengths == min_length)[1]]
+longest_start  <- start_values[which(sequence_lengths == max_length)[1]]
+
+# Compute the actual sequences for reporting
+shortest_sequence <- collatzSequence(shortest_start)$sequence
+longest_sequence  <- collatzSequence(longest_start)$sequence
+
+shortest_start
+min_length
+shortest_sequence
+
+longest_start
+max_length
+longest_sequence
+```
