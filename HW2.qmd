@@ -1,0 +1,200 @@
+---
+title: "HW2"
+format: html
+editor: visual
+---
+
+### Github URL: https://github.com/aelbass/STATS506_HW1.git
+
+## Problem 1
+
+### trying random_walk function
+```{r}
+#' random_walk function
+#'
+#' @param n the number of steps
+#' @return The final position of the walk
+#' @export
+random_walk <- function(n_steps) {
+  position <- 0
+  
+  for (i in 1:n_steps) {
+    step <- sample(c(-1, 1), 1)  # base direction, 50/50
+    
+    if (step == 1) {
+      # With 5% chance, replace +1 with +10
+      if (runif(1) < 0.05) {
+        move <- 10
+      } else {
+        move <- 1
+      }
+    } else {
+      # With 20% chance, replace -1 with -3
+      if (runif(1) < 0.20) {
+        move <- -3
+      } else {
+        move <- -1
+      }
+    }
+    
+    position <- position + move
+  }
+  
+  return(position)
+}
+random_walk(10)
+random_walk(10)
+```
+
+
+### a.
+
+```{r}
+#' random_walk1 function (loop)
+#'
+#' @param n the number of steps
+#' @return The final position of the walk
+#' @export
+random_walk1 <- function(n_steps) {
+  position <- 0
+  
+  for (i in 1:n_steps) {
+    step <- sample(c(-1, 1), 1)  # base direction, 50/50
+    
+    if (step == 1) {
+      # With 5% chance, replace +1 with +10
+      if (runif(1) < 0.05) {
+        move <- 10
+      } else {
+        move <- 1
+      }
+    } else {
+      # With 20% chance, replace -1 with -3
+      if (runif(1) < 0.20) {
+        move <- -3
+      } else {
+        move <- -1
+      }
+    }
+    
+    position <- position + move
+  }
+  
+  return(position)
+}
+
+#' random_walk2 function (vectorization)
+#'
+#' @param n the number of steps
+#' @return The final position of the walk
+#' @export
+
+random_walk2 <- function(n_steps) {
+  base_step <- sample(c(-1, 1), n_steps, replace = TRUE)
+  moves <- base_step
+  
+  # Adjust +1 steps: 5% chance to become +10
+  plus_steps <- which(base_step == 1)
+  moves[plus_steps] <- ifelse(runif(length(plus_steps)) < 0.05, 10, 1)
+  
+  # Adjust -1 steps: 20% chance to become -3
+  minus_steps <- which(base_step == -1)
+  moves[minus_steps] <- ifelse(runif(length(minus_steps)) < 0.20, -3, -1)
+  
+  sum(moves)
+}
+
+#' random_walk3 function (apply)
+#'
+#' @param n the number of steps
+#' @return The final position of the walk
+#' @export
+
+random_walk3 <- function(n_steps) {
+  
+  one_step <- function(i) {
+    step <- sample(c(-1, 1), 1)  # base direction
+    
+    if (step == 1) {
+      if (runif(1) < 0.05) {
+        return(10)
+      } else {
+        return(1)
+      }
+    } else {
+      if (runif(1) < 0.20) {
+        return(-3)
+      } else {
+        return(-1)
+      }
+    }
+  }
+  
+  moves <- sapply(1:n_steps, one_step)
+  sum(moves)
+}
+random_walk1(10)
+random_walk2(10)
+random_walk3(10)
+random_walk1(1000)
+random_walk2(1000)
+random_walk3(100)
+```
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
