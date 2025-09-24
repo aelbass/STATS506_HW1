@@ -90,17 +90,24 @@ random_walk1 <- function(n_steps) {
 #' @export
 
 random_walk2 <- function(n_steps) {
-  base_step <- sample(c(-1, 1), n_steps, replace = TRUE)
-  moves <- base_step
+  # 1. Generate directions (+1 or -1) as in the loop
+  directions <- sample(c(-1, 1), n_steps, replace = TRUE)
   
-  # Adjust +1 steps: 5% chance to become +10
-  plus_steps <- which(base_step == 1)
-  moves[plus_steps] <- ifelse(runif(length(plus_steps)) < 0.05, 10, 1)
+  # 2. Pre-generate a uniform probability for each step
+  probs <- runif(n_steps)
   
-  # Adjust -1 steps: 20% chance to become -3
-  minus_steps <- which(base_step == -1)
-  moves[minus_steps] <- ifelse(runif(length(minus_steps)) < 0.20, -3, -1)
+  # 3. Initialize moves vector
+  moves <- numeric(n_steps)
   
+  # 4. Vectorized assignment for +1 steps
+  plus_idx <- which(directions == 1)
+  moves[plus_idx] <- ifelse(probs[plus_idx] < 0.05, 10, 1)
+  
+  # 5. Vectorized assignment for -1 steps
+  minus_idx <- which(directions == -1)
+  moves[minus_idx] <- ifelse(probs[minus_idx] < 0.20, -3, -1)
+  
+  # 6. Return final position
   sum(moves)
 }
 
@@ -111,66 +118,119 @@ random_walk2 <- function(n_steps) {
 #' @export
 
 random_walk3 <- function(n_steps) {
-  
-  one_step <- function(i) {
-    step <- sample(c(-1, 1), 1)  # base direction
-    
+  moves <- sapply(1:n_steps, function(i) {
+    step <- sample(c(-1, 1), 1)
     if (step == 1) {
-      if (runif(1) < 0.05) {
-        return(10)
-      } else {
-        return(1)
-      }
+      if (runif(1) < 0.05) 10 else 1
     } else {
-      if (runif(1) < 0.20) {
-        return(-3)
-      } else {
-        return(-1)
-      }
+      if (runif(1) < 0.20) -3 else -1
     }
-  }
-  
-  moves <- sapply(1:n_steps, one_step)
+  })
   sum(moves)
 }
+
 random_walk1(10)
 random_walk2(10)
 random_walk3(10)
 random_walk1(1000)
 random_walk2(1000)
-random_walk3(100)
+random_walk3(1000)
 ```
 
+### b.Using seed = 25
+
+```{r}
+set.seed(25)
+random_walk1(10)
+set.seed(25)
+random_walk2(10)
+set.seed(25)
+random_walk3(10)
+set.seed(25)
+random_walk1(1000)
+set.seed(25)
+random_walk2(1000)
+set.seed(25)
+random_walk3(1000)
+```
+
+### c. timing compariosn
+
+```{r}
+# Benchmark
+library("microbenchmark")
+
+set.seed(25)
+microbenchmark(
+  loop = random_walk1(100),
+  sapply = random_walk2(100),
+  vectorized = random_walk3(100),
+  times = 10
+)
+```
+
+At a 1000 steps
+
+### 100000
+
+```{r}
+```
+
+### d.
 
 ```{r}
 
 ```
 
-
-
-```{r}
-
-```
-
-
+## Problem 2
 
 ```{r}
+N <- 3650  # number of days in 10 years
 
+# Poisson means for 24 hours
+lam <- rep(0, 24)
+lam[1:8]   <- 1   # hours 0–7
+lam[10:17] <- 8   # hours 9–16
+lam[19:24] <- 12  # hours 18–23
+
+# Poisson samples (N x 24 matrix)
+poisson_samples <- matrix(
+  rpois(N * 24, lambda = rep(lam, each = N)),
+  nrow = N, ncol = 24, byrow = FALSE
+)
+
+# Normal samples for rush hours (8AM and 5PM)
+sd <- sqrt(12)
+normal_samples <- matrix(
+  rnorm(N * 2, mean = 60, sd = sd),
+  ncol = 2, byrow = TRUE
+)
+
+# Round + clip negatives, stay as matrix
+normal_samples <- pmax(0, round(normal_samples))
+
+# Make sure it's still a matrix even if N=1
+if (is.null(dim(normal_samples))) {
+  dim(normal_samples) <- c(N, 2)
+}
+
+# Replace into hour 8 (col 9) and hour 17 (col 18)
+poisson_samples[, 9]  <- normal_samples[, 1]
+poisson_samples[, 18] <- normal_samples[, 2]
+
+daily_totals <- rowSums(poisson_samples)
+mean_daily <- mean(daily_totals)
+sd_daily   <- sd(daily_totals)
+
+list(
+  mean_daily = mean_daily,
+  sd_daily   = sd_daily
+)
 ```
+The average number of cars that pass that intersection per day is ~264 +- 13 cars.
 
 
-
-```{r}
-
-```
-
-
-
-```{r}
-
-```
-
-
+## Problem 3
 
 ```{r}
 
