@@ -90,25 +90,30 @@ random_walk1 <- function(n_steps) {
 #' @export
 
 random_walk2 <- function(n_steps) {
-  # 1. Generate directions (+1 or -1) as in the loop
-  directions <- sample(c(-1, 1), n_steps, replace = TRUE)
+  sum(ifelse(
+    sample(c(1, -1), n_steps, replace = TRUE) == 1,
+    ifelse(runif(n_steps) < 0.05, 10, 1),
+    ifelse(runif(n_steps) < 0.20, -3, -1)
+  ))
+}
+
+random_walk4 <- function(n_steps) {
+  # Generate all random numbers in the same sequence as the loop
+  rand_nums <- runif(2 * n_steps)  # 2 random numbers per step
   
-  # 2. Pre-generate a uniform probability for each step
-  probs <- runif(n_steps)
+  # Extract direction and modifier random numbers
+  direction_rand <- rand_nums[seq(1, 2*n_steps, by = 2)]
+  modifier_rand <- rand_nums[seq(2, 2*n_steps, by = 2)]
   
-  # 3. Initialize moves vector
-  moves <- numeric(n_steps)
+  directions <- ifelse(direction_rand < 0.5, 1, -1)
   
-  # 4. Vectorized assignment for +1 steps
-  plus_idx <- which(directions == 1)
-  moves[plus_idx] <- ifelse(probs[plus_idx] < 0.05, 10, 1)
+  increments <- ifelse(
+    directions == 1,
+    ifelse(modifier_rand < 0.05, 10, 1),
+    ifelse(modifier_rand < 0.20, -3, -1)
+  )
   
-  # 5. Vectorized assignment for -1 steps
-  minus_idx <- which(directions == -1)
-  moves[minus_idx] <- ifelse(probs[minus_idx] < 0.20, -3, -1)
-  
-  # 6. Return final position
-  sum(moves)
+  sum(increments)
 }
 
 #' random_walk3 function (apply)
@@ -160,27 +165,56 @@ random_walk3(1000)
 # Benchmark
 library("microbenchmark")
 
-set.seed(25)
 microbenchmark(
-  loop = random_walk1(100),
-  sapply = random_walk2(100),
-  vectorized = random_walk3(100),
+  loop = random_walk1(1000),
+  vectorized = random_walk2(1000),
+  sapply = random_walk3(1000),
   times = 10
 )
 ```
 
-At a 1000 steps
+At a 1000 steps, the vectorized version is much faster at 75ms vs 2454ms for the loop version. The sapply version is slow at 2773ms. The sapply function is probably statistically indifferent from the loop function.
 
 ### 100000
 
 ```{r}
+microbenchmark(
+  loop = random_walk1(100000),
+  vectorized = random_walk2(100000),
+  sapply = random_walk3(100000),
+  times = 10
+)
 ```
+
+At a 100000 steps, all functions are actually faster then when only 1000 steps were taken. This can be due to the fact that the function overhead is not counted in the time computation and the time calculation is dominated by the algorithimic efficiency. The vectorized version is much faster at 6ms vs 280ms for the loop version. The sapply version is slow at 339ms. The sapply function is probably statistically indifferent from the loop function.
+
 
 ### d.
 
 ```{r}
+set.seed(25)
+n_sim <- 100000
 
+# 10 steps
+results_10 <- replicate(n_sim, random_walk2(10))
+prob_10 <- mean(results_10 == 0)
+
+# 100 steps  
+results_100 <- replicate(n_sim, random_walk2(100))
+prob_100 <- mean(results_100 == 0)
+
+# 1000 steps
+results_1000 <- replicate(n_sim, random_walk2(1000))
+prob_1000 <- mean(results_1000 == 0)
+
+cat("Monte Carlo Results (n = 100,000 simulations):\n")
+cat("Probability of ending at 0 after 10 steps: ", round(prob_10, 5), "\n")
+cat("Probability of ending at 0 after 100 steps: ", round(prob_100, 5), "\n")
+cat("Probability of ending at 0 after 1000 steps: ", round(prob_1000, 5), "\n")
 ```
+For 10 steps, the probability of ending at 0 is 13.3%. For 100 steps, the probability of ending at 0 is 1.9%. For 1000 steps, the probability of ending at 0 is 0.6%. 
+We see that the walk is more probably to end at 0 with 10 steps than with a 1000 steps. This is due to the fact that for 10 steps, the distribution is relatively compact, so there's a reasonable chance of returning to 0. However, for 1000 steps, the walk has explored a much wider range, making exact return to 0 very unlikely.
+
 
 ## Problem 2
 
