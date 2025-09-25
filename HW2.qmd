@@ -232,29 +232,89 @@ The average number of cars that pass that intersection per day is ~264 +- 13 car
 
 ## Problem 3
 
-```{r}
-
-```
-
-
+### a. Deidentify data
 
 ```{r}
-
+youtube <- read.csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-02/youtube.csv')
+dim(youtube)
+colnames(youtube)
+youtube1 <- youtube[, -c( 2, 3, 4, 12, 14, 20, 21, 22, 23,24)]
+dim(youtube1)
+colnames(youtube1)
+head(youtube1)
 ```
 
+I removed all identifiers from the list, the matrix became 247 rows and down to 15 columns from an initial 25-column matrix
 
+### b. variables to be used in regression models
 
 ```{r}
-
+hist(youtube1$view_count)
+summary(youtube1$view_count)
+hist(youtube1$like_count)
+summary(youtube1$like_count)
+hist(youtube1$dislike_count)
+summary(youtube1$dislike_count)
+hist(youtube1$favorite_count)
+summary(youtube1$favorite_count)
+hist(youtube1$comment_count)
+summary(youtube1$comment_count)
 ```
 
+Favorite count could not be appropriate to use as the outcome in a linear regression model since all the values are 0 (maybe binary). All other variables could be used as is as the outcome in a linear regression model.
+
+
+### c. linear regression models
 
 ```{r}
+#views
+model_views <- lm(view_count ~ funny + show_product_quickly + patriotic + celebrity +
+                  danger + animals + use_sex + year, data = youtube1)
 
+summary(model_views)
+
+#likes
+model_likes <- lm(like_count ~ funny + show_product_quickly + patriotic + celebrity +
+                  danger + animals + use_sex + year, data = youtube1)
+
+summary(model_likes)
+
+#dislikes
+model_dislikes <- lm(dislike_count ~ funny + show_product_quickly + patriotic +    celebrity + danger + animals + use_sex + year, data = youtube1)
+
+summary(model_dislikes)
+
+#comments
+model_comments <- lm(comment_count ~ funny + show_product_quickly + patriotic + celebrity + danger + animals + use_sex + year, data = youtube1)
+
+summary(model_comments)
 ```
 
+For the view, like and dislike counts, there is no statistcial difference based on the p-values > 0.05, thus no consistent effect between any of the binary variables and the view_count. 
 
+However, for the comment counts there is a directly positive relationship between patriotic adds and comments with a p value of 0.035. This is the only statistically significantly relationship. 
+
+
+### d. compute B hat manually
 
 ```{r}
+# setting up proper matrix
+vars_used <- c("view_count", "funny", "show_product_quickly", "patriotic", "celebrity",
+               "danger", "animals", "use_sex", "year")
+complete_cases <- complete.cases(youtube1[, vars_used])
+youtube_complete <- youtube1[complete_cases, ]
 
+X <- model.matrix(view_count ~ funny + show_product_quickly + patriotic + celebrity +
+                 danger + animals + use_sex + year, data = youtube_complete)
+
+y <- youtube_complete$view_count
+
+cat("Dimensions of X:", dim(X), "\n")
+cat("Length of y:", length(y), "\n")
+cat("Number of rows in X equals length of y:", nrow(X) == length(y), "\n")
+
+beta_hat_manual <- solve(crossprod(X), crossprod(X, y))
+beta_hat_manual
 ```
+
+These are same values of B obtained in part C when lm was used.
