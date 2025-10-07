@@ -93,6 +93,121 @@ I changed up the ordering of the categories: I made the "0 to 4,999", "5,000 to 
 
 
 ```{r}
+# cleaning up everything and getting only important data now
+
+library(dplyr)
+
+merged <- merged %>%
+  rename(
+    Gender = RIAGENDR,
+    Citizenship = DMDCITZN,
+    NumKids_U5 = DMDHHSZA,
+    HouseholdIncome = INDHHIN2,
+    Right_ear = AUXTWIDR,
+    Left_ear = AUXTWIDL
+  )
+
+merged <- merged %>%
+  select(SEQN, Gender, Citizenship, NumKids_U5, HouseholdIncome, Right_ear, Left_ear)
+
+# run poisson regression
+
+library(broom)
+library(knitr)
+
+# Model 1R: Right ear ~ Gender
+model_1R <- glm(Right_ear ~ Gender, family = poisson(link = "log"), data = merged)
+
+# Model 2R: Right ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome
+model_2R <- glm(Right_ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome,
+                family = poisson(link = "log"), data = merged)
+
+# Model 1L: Left ear ~ Gender
+model_1L <- glm(Left_ear ~ Gender, family = poisson(link = "log"), data = merged)
+
+# Model 2L: Left ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome
+model_2L <- glm(Left_ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome,
+                family = poisson(link = "log"), data = merged)
+
+# Function to get tidy table with IRRs
+get_IRR_table <- function(model) {
+  tidy(model) %>%
+    mutate(IRR = exp(estimate),
+           IRR_lower = exp(estimate - 1.96*std.error),
+           IRR_upper = exp(estimate + 1.96*std.error)) %>%
+    select(term, IRR, IRR_lower, IRR_upper, p.value) %>%
+    mutate(IRR = round(IRR, 3),
+           IRR_lower = round(IRR_lower, 3),
+           IRR_upper = round(IRR_upper, 3),
+           p.value = round(p.value, 3))
+}
+
+# Create IRR tables
+irr_1R <- get_IRR_table(model_1R)
+irr_2R <- get_IRR_table(model_2R)
+irr_1L <- get_IRR_table(model_1L)
+irr_2L <- get_IRR_table(model_2L)
+
+get_model_stats <- function(model) {
+  n <- model$df.null + 1
+  aic <- AIC(model)
+  # McFadden pseudo-R²
+  pseudo_r2 <- 1 - (model$deviance / model$null.deviance)
+  
+  data.frame(
+    N = n,
+    Pseudo_R2 = round(pseudo_r2, 3),
+    AIC = round(aic, 2)
+  )
+}
+
+stats_1R <- get_model_stats(model_1R)
+stats_2R <- get_model_stats(model_2R)
+stats_1L <- get_model_stats(model_1L)
+stats_2L <- get_model_stats(model_2L)
+
+#Coefficients
+irr_combined <- list(
+  "Right Ear: Gender" = irr_1R,
+  "Right Ear: Full" = irr_2R,
+  "Left Ear: Gender" = irr_1L,
+  "Left Ear: Full" = irr_2L
+)
+
+# Print with kable
+for(name in names(irr_combined)) {
+  cat("\n###", name, "\n")
+  print(kable(irr_combined[[name]], caption = paste("IRRs for", name)))
+}
+
+#Statistics
+stats_combined <- bind_rows(
+  cbind(Model = "Right Ear: Gender", stats_1R),
+  cbind(Model = "Right Ear: Full", stats_2R),
+  cbind(Model = "Left Ear: Gender", stats_1L),
+  cbind(Model = "Left Ear: Full", stats_2L)
+)
+
+kable(stats_combined, caption = "Poisson Model Statistics")
+
+```
+
+
+### d. difference between males and females in terms of their incidence risk ratio
+
+```{r}
+# I will run summary to get the full value of P.
+
+coef_matrix <- summary(model_2L)$coefficients
+coef_matrix["Genderfemale", ]
+```
+
+The predicted Tympanometric width of the left ear differs slightly between males and females. Females are expected to have ~1.3% higher width than males, holding all other variables constant. The difference is statistically significant (p = 0.000157).
+
+
+## Problem 2
+
+```{r}
 
 ```
 
