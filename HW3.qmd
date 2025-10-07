@@ -11,7 +11,7 @@ editor: visual
 ### a. Read data
 
 ```{r}
-install.packages("haven")
+#installed 'haven' in console
 library(haven)
 
 data <- read_xpt("AUX_I.xpt")
@@ -19,13 +19,85 @@ data2 <- read_xpt("DEMO_I.xpt")
 
 #Merge using (dplyr)
 
-install.packages("dplyr")
+#installed 'dplyr' in console
 library(dplyr)
 
-merged_data <- inner_join(data, data2, by = "SEQN")
-dim(merged_data)
-head(merged_data)
+merged <- inner_join(data, data2, by = "SEQN")
+dim(merged)
 ```
+
+
+### b. Clean up data
+
+
+```{r}
+#Clean up gender
+unique(merged$RIAGENDR)
+merged$RIAGENDR <- factor(merged$RIAGENDR,
+                      levels = c(1, 2),
+                      labels = c("male", "female"))
+unique(merged$RIAGENDR)
+```
+
+Gender data is already clean; I just categorized to male and female.
+
+
+```{r}
+#Clean up citizenship
+
+merged$DMDCITZN[!merged$DMDCITZN %in% c(1, 2, 7, 9)] <- NA
+
+merged$DMDCITZN <- factor(merged$DMDCITZN,
+                          levels = c(1, 2, 7, 9),
+                          labels = c("citizen", "non-citizen", "refused", "don't know"))
+
+library(forcats)
+merged$DMDCITZN <- fct_explicit_na(merged$DMDCITZN, na_level = "missing")
+
+unique(merged$DMDCITZN)
+table(merged$DMDCITZN)
+```
+
+
+Cleaned up citizenship status and turned into factor with categorical levels.
+
+
+```{r}
+#Clean up children under the age of 5 data
+unique(merged$DMDHHSZA)
+```
+
+Children under the age of 5 data is already clean and not categorical.
+
+
+```{r}
+#Clean up annual household income
+unique(merged$INDHHIN2)
+library(dplyr)
+
+merged <- merged %>%
+  mutate(INDHHIN2 = case_when(
+    INDHHIN2 == 12 ~ 14,
+    INDHHIN2 == 14 ~ 11,
+    INDHHIN2 == 15 ~ 12,
+    TRUE ~ INDHHIN2  # keep everything else unchanged
+  ))
+table(merged$INDHHIN2)
+```
+
+
+I changed up the ordering of the categories: I made the "0 to 4,999", "5,000 to 9,999", etc. take 1-12 (including 11) for code or value, "Under $20,000" take 13, "20,000 and Over" take 14. There was no missing data.
+
+
+### c. Poisson regression models predicting a respondent’s Tympanometric width in each ear
+
+
+```{r}
+
+```
+
+
+Spare
 
 ```{r}
 
