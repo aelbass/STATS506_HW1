@@ -1,0 +1,32 @@
+---
+title: "HW3"
+format: html
+editor: visual
+---
+
+### Github URL: https://github.com/aelbass/STATS506_HW1.git
+
+## Problem 1
+
+### a. Read data
+
+```{r}
+install.packages("haven")
+library(haven)
+
+data <- read_xpt("AUX_I.xpt")
+data2 <- read_xpt("DEMO_I.xpt")
+
+#Merge using (dplyr)
+
+install.packages("dplyr")
+library(dplyr)
+
+merged_data <- inner_join(data, data2, by = "SEQN")
+dim(merged_data)
+head(merged_data)
+```
+
+```{r}
+
+```
