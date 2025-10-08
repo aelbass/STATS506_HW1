@@ -193,7 +193,7 @@ kable(stats_combined, caption = "Poisson Model Statistics")
 ```
 
 
-### d. difference between males and females in terms of their incidence risk ratio
+### d. Difference between males and females in terms of their incidence risk ratio
 
 ```{r}
 # I will run summary to get the full value of P.
@@ -207,11 +207,189 @@ The predicted Tympanometric width of the left ear differs slightly between males
 
 ## Problem 2
 
-```{r}
+### a. Customers in store, and percentage of customers of that store are active in the system
 
+```{r}
+library(DBI)
+library(RSQLite)
+
+# connect to the database
+sakila <- dbConnect(RSQLite::SQLite(), "sakila_master.db")
+df <- dbGetQuery(sakila, "
+  SELECT s.store_id, c.customer_id, c.active
+  FROM store s
+  LEFT JOIN customer c
+  ON s.store_id = c.store_id
+")
+
+library(dplyr)
+
+df <- df %>%
+  mutate(active = as.numeric(active))
+
+result_r <- df %>%
+  group_by(store_id) %>%
+  summarise(
+    total_customers = n(),
+    active_customers = sum(active, na.rm = TRUE),
+    pct_active = 100 * active_customers / total_customers
+  )
+
+print(result_r)
+
+#fully in SQL
+
+result_sql <- dbGetQuery(sakila, "
+  SELECT
+    s.store_id,
+    COUNT(c.customer_id) AS total_customers,
+    SUM(c.active) AS active_customers,
+    100.0 * SUM(c.active) / COUNT(c.customer_id) AS pct_active
+  FROM store s
+  LEFT JOIN customer c ON s.store_id = c.store_id
+  GROUP BY s.store_id
+")
+
+print(result_sql)
+```
+
+Speed analysis with microbenchmark
+
+```{r}
+library(DBI)
+library(RSQLite)
+library(microbenchmark)
+
+# connect to the database
+sakila <- dbConnect(RSQLite::SQLite(), "sakila_master.db")
+
+mb <- microbenchmark(
+  R_based = {
+    df <- dbGetQuery(sakila, "
+      SELECT s.store_id, c.customer_id, c.active
+      FROM store s
+      LEFT JOIN customer c
+      ON s.store_id = c.store_id
+    ")
+
+    df <- df %>%
+      mutate(active = as.numeric(active)) %>%
+      group_by(store_id) %>%
+      summarise(
+        total_customers = n(),
+        active_customers = sum(active, na.rm = TRUE),
+        pct_active = 100 * active_customers / total_customers,
+        .groups = "drop"
+      )
+  },
+  
+  SQL_based = {
+    dbGetQuery(sakila, "
+      SELECT
+        s.store_id,
+        COUNT(c.customer_id) AS total_customers,
+        SUM(c.active) AS active_customers,
+        100.0 * SUM(c.active) / COUNT(c.customer_id) AS pct_active
+      FROM store s
+      LEFT JOIN customer c ON s.store_id = c.store_id
+      GROUP BY s.store_id
+    ")
+  },
+  
+  times = 10
+)
+
+print(mb)
+```
+The SQL_based function is about 10 times faster than getting the data into R and running R functions on it.
+
+### b. Table identifying the names and country of each staff member
+
+```{r}
+library(DBI)
+library(RSQLite)
+library(dplyr)
+library(microbenchmark)
+
+# Connect to the database
+sakila <- dbConnect(RSQLite::SQLite(), "sakila_master.db")
+
+staff_df <- dbGetQuery(sakila, "SELECT staff_id, first_name, last_name, address_id FROM staff;")
+address_df <- dbGetQuery(sakila, "SELECT address_id, city_id FROM address;")
+city_df <- dbGetQuery(sakila, "SELECT city_id, country_id FROM city;")
+country_df <- dbGetQuery(sakila, "SELECT country_id, country FROM country;")
+
+# Join in R
+result_r <- staff_df %>%
+  left_join(address_df, by = "address_id") %>%
+  left_join(city_df, by = "city_id") %>%
+  left_join(country_df, by = "country_id") %>%
+  select(first_name, last_name, country)
+
+
+result_sql <- dbGetQuery(sakila, "
+  SELECT 
+    s.first_name,
+    s.last_name,
+    co.country
+  FROM staff s
+  LEFT JOIN address a ON s.address_id = a.address_id
+  LEFT JOIN city ci ON a.city_id = ci.city_id
+  LEFT JOIN country co ON ci.country_id = co.country_id;
+")
+
+library(knitr)
+
+# Assuming your result is called result_r (R-based join) or result_sql (SQL-based join)
+kable(result_r, caption = "R-Based Approach: Staff Names and Country")
+
+kable(result_sql, caption = "SQL-Based Approach: Staff Names and Country")
 ```
 
 
+Speed analysis with microbenchmark
+
+```{r}
+mb <- microbenchmark(
+  R_based = {
+    staff_df <- dbGetQuery(sakila, "SELECT staff_id, first_name, last_name, address_id FROM staff;")
+    address_df <- dbGetQuery(sakila, "SELECT address_id, city_id FROM address;")
+    city_df <- dbGetQuery(sakila, "SELECT city_id, country_id FROM city;")
+    country_df <- dbGetQuery(sakila, "SELECT country_id, country FROM country;")
+
+    staff_df %>%
+      left_join(address_df, by = "address_id") %>%
+      left_join(city_df, by = "city_id") %>%
+      left_join(country_df, by = "country_id") %>%
+      select(first_name, last_name, country)
+  },
+
+  SQL_based = {
+    dbGetQuery(sakila, "
+      SELECT 
+        s.first_name,
+        s.last_name,
+        co.country
+      FROM staff s
+      LEFT JOIN address a ON s.address_id = a.address_id
+      LEFT JOIN city ci ON a.city_id = ci.city_id
+      LEFT JOIN country co ON ci.country_id = co.country_id;
+    ")
+  },
+
+  times = 5
+)
+
+print(mb)
+```
+
+The SQL based function is roughly 16 times faster than importing and running in R.
+
+### c. Name(s) of the film(s) which was/were rented for the highest dollar value
+
+```{r}
+
+```
 Spare
 
 ```{r}
