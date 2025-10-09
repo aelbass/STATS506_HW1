@@ -388,8 +388,80 @@ The SQL based function is roughly 16 times faster than importing and running in 
 ### c. Name(s) of the film(s) which was/were rented for the highest dollar value
 
 ```{r}
+library(dplyr)
 
+film <- dbReadTable(sakila, "film")
+inventory <- dbReadTable(sakila, "inventory")
+rental <- dbReadTable(sakila, "rental")
+payment <- dbReadTable(sakila, "payment")
+
+result_r <- film %>%
+  left_join(inventory, by = "film_id", relationship = "many-to-many") %>%
+  left_join(rental, by = "inventory_id", relationship = "many-to-many") %>%
+  left_join(payment, by = "rental_id", relationship = "many-to-many") %>%
+  group_by(title) %>%
+  summarise(total_revenue = sum(amount, na.rm = TRUE)) %>%
+  arrange(desc(total_revenue)) %>%
+  slice_head(n = 3)
+
+print(result_r)
+
+result_sql <- dbGetQuery(sakila, "
+  SELECT f.title AS film_title,
+         SUM(p.amount) AS total_revenue
+  FROM film f
+  JOIN inventory i ON f.film_id = i.film_id
+  JOIN rental r ON i.inventory_id = r.inventory_id
+  JOIN payment p ON r.rental_id = p.rental_id
+  GROUP BY f.title
+  ORDER BY total_revenue DESC
+  LIMIT 3;
+")
+
+print(result_sql)
 ```
+The highest 3 films with dollar values are: TELEGRAPH VOYAGE, WIFE TURN and ZORRO ARK	
+
+
+Speed analysis with microbenchmark.
+
+```{r}
+library(microbenchmark)
+
+microbenchmark(
+  R_based = {
+    film <- dbReadTable(sakila, "film")
+    inventory <- dbReadTable(sakila, "inventory")
+    rental <- dbReadTable(sakila, "rental")
+    payment <- dbReadTable(sakila, "payment")
+
+    film %>%
+  left_join(inventory, by = "film_id", relationship = "many-to-many") %>%
+  left_join(rental, by = "inventory_id", relationship = "many-to-many") %>%
+  left_join(payment, by = "rental_id", relationship = "many-to-many") %>%
+      group_by(title) %>%
+      summarise(total_revenue = sum(amount, na.rm = TRUE)) %>%
+      arrange(desc(total_revenue)) %>%
+      slice_head(n = 3)
+  },
+  SQL_based = {
+    dbGetQuery(sakila, "
+      SELECT f.title AS film_title,
+             SUM(p.amount) AS total_revenue
+      FROM film f
+      JOIN inventory i ON f.film_id = i.film_id
+      JOIN rental r ON i.inventory_id = r.inventory_id
+      JOIN payment p ON r.rental_id = p.rental_id
+      GROUP BY f.title
+      ORDER BY total_revenue DESC
+      LIMIT 3;
+    ")
+  },
+  times = 10
+)
+```
+SQL is almost 3 times faster than R-based code.
+
 Spare
 
 ```{r}
