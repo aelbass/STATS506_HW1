@@ -462,6 +462,101 @@ microbenchmark(
 ```
 SQL is almost 3 times faster than R-based code.
 
+## Problem 1
+
+### a. Percentage of the websites .com’s
+
+```{r}
+data <- read.csv("au-500.csv")
+
+data %>%
+  summarize(
+    percent_com = mean(grepl("\\.com$", web, ignore.case = TRUE)) * 100
+  )
+```
+
+
+### b. Most common domain name
+
+```{r}
+install.packages("stringr")
+install.packages("dplyr")
+
+library(dplyr)
+library(stringr)
+
+data %>%
+  mutate(domain = str_extract(email, "(?<=@).*")) %>%
+  count(domain, sort = TRUE) %>%
+  slice(1)
+```
+
+
+### c. Proportion of company names with non-alphabertical characters
+
+```{r}
+data %>%
+  summarize(
+    prop_non_alpha = mean(str_detect(company_name, "[^A-Za-z,[:space:]]"))
+  )
+# if I aslo exclude &
+
+data %>%
+  summarize(
+    prop_non_alpha2 = mean(str_detect(company_name, "[^A-Za-z,[:space:]&]"))
+  )
+```
+
+
+### d. Turn landline numbers to cell phone format
+
+```{r}
+data$phone1 <- as.character(data$phone1)
+data$phone2 <- as.character(data$phone2)
+
+# Format phone1 (landlines) into cell phone format: 1234-567-890
+data$phone1 <- gsub(
+  "^([0-9]{4})([0-9]{3})([0-9]{3})$", 
+  "\\1-\\2-\\3", 
+  gsub("[^0-9]", "", data$phone1) # remove any non-digit characters
+)
+
+data$phone2 <- gsub(
+  "^([0-9]{4})([0-9]{3})([0-9]{3})$", 
+  "\\1-\\2-\\3", 
+  gsub("[^0-9]", "", data$phone2)
+)
+
+# Show the first 10 numbers from each column
+head(data$phone1, 10)
+head(data$phone2, 10)
+```
+
+Cell-phone (phone2) numbers are already in the right format. 
+
+
+### e. Histogram of Apt. numbers
+
+```{r}
+apt_numbers <- as.numeric(sub(".*#(\\d+)\\s*$", "\\1", data$address))
+log_apt <- log(apt_numbers)
+
+hist(log_apt,
+     main = "Histogram of log(Apartment Numbers)",
+     xlab = "log(Apartment Number)",
+     ylab = "Frequency",
+     col = "skyblue",
+     border = "white")
+```
+
+
+### f.
+
+```{r}
+
+```
+
+
 Spare
 
 ```{r}
