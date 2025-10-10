@@ -11,16 +11,12 @@ editor: visual
 ### a. Read data
 
 ```{r}
-#installed 'haven' in console
 library(haven)
+library(dplyr)
 
 data <- read_xpt("AUX_I.xpt")
 data2 <- read_xpt("DEMO_I.xpt")
 
-#Merge using (dplyr)
-
-#installed 'dplyr' in console
-library(dplyr)
 
 merged <- inner_join(data, data2, by = "SEQN")
 dim(merged)
@@ -58,7 +54,6 @@ unique(merged$DMDCITZN)
 table(merged$DMDCITZN)
 ```
 
-
 Cleaned up citizenship status and turned into factor with categorical levels.
 
 
@@ -72,7 +67,6 @@ Children under the age of 5 data is already clean and not categorical.
 
 ```{r}
 #Clean up annual household income
-unique(merged$INDHHIN2)
 library(dplyr)
 
 merged <- merged %>%
@@ -82,6 +76,7 @@ merged <- merged %>%
     INDHHIN2 == 15 ~ 12,
     TRUE ~ INDHHIN2  # keep everything else unchanged
   ))
+
 table(merged$INDHHIN2)
 ```
 
@@ -90,7 +85,6 @@ I changed up the ordering of the categories: I made the "0 to 4,999", "5,000 to 
 
 
 ### c. Poisson regression models predicting a respondent’s Tympanometric width in each ear
-
 
 ```{r}
 # cleaning up everything and getting only important data now
@@ -110,22 +104,20 @@ merged <- merged %>%
 merged <- merged %>%
   select(SEQN, Gender, Citizenship, NumKids_U5, HouseholdIncome, Right_ear, Left_ear)
 
-# run poisson regression
-
 library(broom)
 library(knitr)
 
-# Model 1R: Right ear ~ Gender
+# Model 1R
 model_1R <- glm(Right_ear ~ Gender, family = poisson(link = "log"), data = merged)
 
-# Model 2R: Right ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome
+# Model 2R
 model_2R <- glm(Right_ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome,
                 family = poisson(link = "log"), data = merged)
 
-# Model 1L: Left ear ~ Gender
+# Model 1L
 model_1L <- glm(Left_ear ~ Gender, family = poisson(link = "log"), data = merged)
 
-# Model 2L: Left ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome
+# Model 2L
 model_2L <- glm(Left_ear ~ Gender + Citizenship + NumKids_U5 + HouseholdIncome,
                 family = poisson(link = "log"), data = merged)
 
@@ -151,7 +143,7 @@ irr_2L <- get_IRR_table(model_2L)
 get_model_stats <- function(model) {
   n <- model$df.null + 1
   aic <- AIC(model)
-  # McFadden pseudo-R²
+  
   pseudo_r2 <- 1 - (model$deviance / model$null.deviance)
   
   data.frame(
@@ -339,8 +331,6 @@ result_sql <- dbGetQuery(sakila, "
 ")
 
 library(knitr)
-
-# Assuming your result is called result_r (R-based join) or result_sql (SQL-based join)
 kable(result_r, caption = "R-Based Approach: Staff Names and Country")
 
 kable(result_sql, caption = "SQL-Based Approach: Staff Names and Country")
@@ -420,7 +410,7 @@ result_sql <- dbGetQuery(sakila, "
 
 print(result_sql)
 ```
-The highest 3 films with dollar values are: TELEGRAPH VOYAGE, WIFE TURN and ZORRO ARK	
+The highest 3 films with dollar values are: TELEGRAPH VOYAGE, WIFE TURN and ZORRO ARK.
 
 
 Speed analysis with microbenchmark.
@@ -460,9 +450,8 @@ microbenchmark(
   times = 10
 )
 ```
-SQL is almost 3 times faster than R-based code.
 
-## Problem 1
+## Problem 3
 
 ### a. Percentage of the websites .com’s
 
@@ -479,6 +468,7 @@ data %>%
 ### b. Most common domain name
 
 ```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org"))
 install.packages("stringr")
 install.packages("dplyr")
 
@@ -531,7 +521,6 @@ data$phone2 <- gsub(
 head(data$phone1, 10)
 head(data$phone2, 10)
 ```
-
 Cell-phone (phone2) numbers are already in the right format. 
 
 
@@ -550,15 +539,16 @@ hist(log_apt,
 ```
 
 
-### f.
+### f. Aprtment numbers following Benford's law
 
 ```{r}
+first_digit <- as.numeric(substr(as.character(apt_numbers), 1, 1))
+digit_counts <- table(factor(first_digit, levels=1:9))
+digit_props <- digit_counts / sum(digit_counts)
 
+# Print proportions
+digit_props
 ```
 
+Since Benford's law states that the number 1 appears as the leading significant digit about 30% of the time, while 9 appears as the leading significant digit less than 5% of the time, the apartment numbers does not pass as real data with the number 1 appearing only 9.6% of times and number 9 appearing 13.6%. 
 
-Spare
-
-```{r}
-
-```
