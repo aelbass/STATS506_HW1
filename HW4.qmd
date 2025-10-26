@@ -1,0 +1,50 @@
+---
+title: "HW4"
+format: html
+editor: visual
+---
+
+### Github URL: https://github.com/aelbass/STATS506_HW1.git
+
+## Problem 1
+
+### a. Generate a table (which can just be a nicely printed tibble) of vote count (regardless of party) per year/type. Make sure to sort it by vote count.
+
+```{r}
+library(nzelect)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+
+vote_summary <- nzge %>%
+  group_by(election_year, voting_type) %>%
+  summarise(total_votes = sum(votes, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(total_votes))
+
+vote_summary
+```
+
+
+### b. Focus only on the 2014 election. Report the proportion of votes for each party in the Candidate election. Again, produce a nice table and sort it by percent of vote.
+
+
+```{r}
+candidate_2014 <- nzge %>%
+  filter(election_year == 2014, voting_type == "Candidate") %>%
+  group_by(party) %>%
+  summarise(total_votes = sum(votes, na.rm = TRUE), .groups = "drop") %>%
+  mutate(percent_vote = round(100 * total_votes / sum(total_votes), 2)) %>%
+  select(party, percent_vote) %>% 
+  arrange(desc(percent_vote))
+
+candidate_2014
+```
+
+
+Template
+
+```{r}
+
+```
+
+
