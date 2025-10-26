@@ -44,14 +44,13 @@ candidate_2014
 
 ```{r}
 winners_by_year <- nzge %>%
-  # aggregate total votes by year, voting_type, party
   group_by(election_year, voting_type, party) %>%
   summarise(total_votes = sum(votes, na.rm = TRUE), .groups = "drop") %>%
-  # for each year & voting_type, pick the party with the max votes
   group_by(election_year, voting_type) %>%
   slice_max(total_votes, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
-  # reshape so we have one row per year, with two columns: winner_candidate, winner_party
+  
+  
   pivot_wider(names_from = voting_type,
               values_from = party,
               names_prefix = "winner_") %>%
