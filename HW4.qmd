@@ -59,6 +59,120 @@ winners_by_year <- nzge %>%
 winners_by_year
 ```
 
+## Problem 2
+
+
+```{r}
+atp_matches_2019 <- read_csv("atp_matches_2019.csv")
+head(atp_matches_2019)
+glimpse(atp_matches_2019)
+```
+
+### a. How many tournaments took place in 2019
+
+```{r}
+atp_matches_2019 %>%
+  mutate(year = str_extract(tourney_id, "^[0-9]{4}")) %>%
+  filter(year == "2019") %>%
+  summarise(tournaments_2019 = n_distinct(tourney_id))
+```
+
+128 tournaments took place in 2019.
+
+
+### b. Did any player win more than one tournament? If so, how many players won more than one tournament, and how many tournaments did the most winning player(s) win?
+
+```{r}
+tournament_winners <- atp_matches_2019 %>%
+  group_by(tourney_id) %>%
+  filter(match_num == max(match_num, na.rm = TRUE)) %>%  # final match per tournament
+  ungroup() %>%
+  select(tourney_id, winner_name)
+
+player_wins <- tournament_winners %>%
+  count(winner_name, name = "tournaments_won") %>%
+  arrange(desc(tournaments_won))
+players_more_than_one <- player_wins %>%
+  filter(tournaments_won > 1)
+
+num_players_more_than_one <- nrow(players_more_than_one)
+max_tournaments_won <- max(player_wins$tournaments_won)
+
+player_wins
+num_players_more_than_one
+max_tournaments_won
+```
+
+From the table above, 17 players won more than one tournament. The most winning player won 9 tournaments, and that was Rafael Nadal.
+
+
+### c. Is there any evidence that winners have more aces than losers? (If you address this with a hypothesis test, do not use base R functionality - continue to remain in the Tidyverse.)
+
+```{r}
+aces_data <- atp_matches_2019 %>%
+  select(w_ace, l_ace) %>%
+  pivot_longer(cols = c(w_ace, l_ace),
+               names_to = "player_type",
+               values_to = "aces") %>%
+  mutate(player_type = if_else(player_type == "w_ace", "Winner", "Loser"))
+
+aces_data %>%
+  group_by(player_type) %>%
+  summarise(mean_aces = mean(aces, na.rm = TRUE),
+            median_aces = median(aces, na.rm = TRUE),
+            sd_aces = sd(aces, na.rm = TRUE),
+            n = n())
+
+
+```
+
+Winners tend to average more aces than losers.
+
+I am not sure if it is enough to get average and std, so I ran a hypothesis test below with a null hypothesis that there is no difference in the mean number of aces between winners and losers.
+
+```{r}
+library(tidyverse)
+library(broom)
+
+ace_tidytest <- aces_data %>%
+  group_by(player_type) %>%
+  summarise(aces = list(aces)) %>%
+  summarise(tidy_result = list(tidy(t.test(aces[[1]], aces[[2]], var.equal = FALSE)))) %>%
+  unnest(tidy_result)
+
+ace_tidytest
+```
+
+And since p < 0.05, there’s evidence that winners tend to serve more aces.
+
+
+### d. Identify the player(s) with the highest win-rate. (Note that this is NOT asking for the highest number of wins.) Restrict to players with at least 5 matches.
+
+```{r}
+player_stats <- atp_matches_2019 %>%
+  select(winner_name, loser_name) %>%
+  pivot_longer(cols = c(winner_name, loser_name),
+               names_to = "result",
+               values_to = "player") %>%
+  mutate(is_win = if_else(result == "winner_name", 1, 0))
+
+player_summary <- player_stats %>%
+  group_by(player) %>%
+  summarise(
+    matches = n(),
+    wins = sum(is_win),
+    win_rate = wins / matches
+  ) %>%
+  filter(matches >= 5) %>%
+  arrange(desc(win_rate))
+
+player_summary %>%
+  filter(win_rate == max(win_rate))
+```
+
+Rafael Nadal is has the highest win rate, ~87%. He played 69 games.
+
+
 Template
 
 ```{r}
