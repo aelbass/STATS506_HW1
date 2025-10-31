@@ -8,7 +8,7 @@ editor: visual
 
 ## Problem 1
 
-### a. Generate a table (which can just be a nicely printed tibble) of vote count (regardless of party) per year/type. Make sure to sort it by vote count.
+### a. Generate a table of vote count (regardless of party) per year/type. Make sure to sort it by vote count.
 
 ```{r}
 library(nzelect)
@@ -25,8 +25,7 @@ vote_summary
 ```
 
 
-### b. Focus only on the 2014 election. Report the proportion of votes for each party in the Candidate election. Again, produce a nice table and sort it by percent of vote.
-
+### b. For the 2014 election, report the proportion of votes for each party in the Candidate election.
 
 ```{r}
 candidate_2014 <- nzge %>%
@@ -40,7 +39,7 @@ candidate_2014 <- nzge %>%
 candidate_2014
 ```
 
-###c. Produce a nice table indicating, for each year, which party won the Candidate vote and which party won the Party vote.
+### c. Produce a nice table indicating, for each year, which party won the Candidate vote and which party won the Party vote.
 
 ```{r}
 winners_by_year <- nzge %>%
@@ -49,8 +48,6 @@ winners_by_year <- nzge %>%
   group_by(election_year, voting_type) %>%
   slice_max(total_votes, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
-  
-  
   pivot_wider(names_from = voting_type,
               values_from = party,
               names_prefix = "winner_") %>%
@@ -64,7 +61,6 @@ winners_by_year
 
 ```{r}
 atp_matches_2019 <- read_csv("atp_matches_2019.csv")
-head(atp_matches_2019)
 ```
 
 ### a. How many tournaments took place in 2019
@@ -76,7 +72,7 @@ atp_matches_2019 %>%
   summarise(tournaments_2019 = n_distinct(tourney_id))
 ```
 
-128 tournaments took place in 2019. I looked into the toiurnament_id for different distinct entries that start with "2019" assuming all tournaments even ones with tourney_date the last day of 2018 ended in 2019. 
+128 tournaments took place in 2019. I looked into the tournament_id for different distinct entries that start with "2019" assuming all tournaments with tourney_date as the last day of 2018 ended in 2019. 
 
 
 ### b. Did any player win more than one tournament? If so, how many players won more than one tournament, and how many tournaments did the most winning player(s) win?
@@ -84,7 +80,7 @@ atp_matches_2019 %>%
 ```{r}
 tournament_winners <- atp_matches_2019 %>%
   group_by(tourney_id) %>%
-  filter(match_num == max(match_num, na.rm = TRUE)) %>%  # final match per tournament
+  filter(match_num == max(match_num, na.rm = TRUE)) %>% 
   ungroup() %>%
   select(tourney_id, winner_name)
 
@@ -94,15 +90,18 @@ player_wins <- tournament_winners %>%
 players_more_than_one <- player_wins %>%
   filter(tournaments_won > 1)
 
+#for confirmation,
 num_players_more_than_one <- nrow(players_more_than_one)
 max_tournaments_won <- max(player_wins$tournaments_won)
 
 player_wins
 num_players_more_than_one
 max_tournaments_won
+
+
 ```
 
-From the table above, 17 players won more than one tournament. The most winning player won 9 tournaments, and that was Rafael Nadal.
+Yes, from the table above, 17 players won more than one tournament. The most winning player won 9 tournaments, and that was Rafael Nadal.
 
 
 ### c. Is there any evidence that winners have more aces than losers? (If you address this with a hypothesis test, do not use base R functionality - continue to remain in the Tidyverse.)
@@ -121,8 +120,6 @@ aces_data %>%
             median_aces = median(aces, na.rm = TRUE),
             sd_aces = sd(aces, na.rm = TRUE),
             n = n())
-
-
 ```
 
 Winners tend to average more aces than losers.
@@ -171,12 +168,10 @@ player_summary %>%
 
 Rafael Nadal is has the highest win rate, ~87%. He played 69 games.
 
-## Problem 2
+## Problem 3
 
 ```{r}
 covid_cases <- read_csv("us-states.csv")
-head(covid_cases)
-glimpse(covid_cases)
 ```
 
 
@@ -210,22 +205,64 @@ I made plots with different x-axis grid (e.g. by month instead of by year) but i
 ### b. For the states with the highest and lowest overall rates per population, what differences do you see in their trajectories over time?
 
 ```{r}
+library(tidyverse)
 
+highest_and_lowest <- covid_cases %>%
+  group_by(state) %>% 
+  summarise(mean_rate = mean(cases_avg_per_100k, na.rm = TRUE)) %>% 
+  arrange(desc(mean_rate))
+
+highest_and_lowest
+
+covid_cases %>%
+  filter(state %in% c("American Samoa", "Maryland")) %>%
+  ggplot(aes(x = date, y = cases_avg_per_100k, color = state)) +
+  geom_line() +
+  labs(
+    title = "COVID-19 Average Cases per 100k",
+    x = "Date",
+    y = "Cases per 100k",
+    color = "State"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 8)
+  ) +
+  scale_x_date(date_breaks = "6 month", date_labels = "%b %Y")
 ```
 
+I ran a tidyverse function to get the states with the highest and lowest overall rates per population over the 3-year period of the data. American Samoa had the hghest average of overall rates while Maryland had the lowest average. For the differences in the trajectory, 
+1- In Maryland, the cases started showing up as soon as the pandemic started early 2020; however, no noticeable cases were recorded in American Samoa until late 2021. 
+2- American Samoa’s peak in early 2022 is extremely high; the rate per 100k surpasses Maryland’s at any time. Maryland’s waves are smaller but more frequent.
+3- Maryland’s waves are smooth and extended, showing prolonged transmission periods. American Samoa’s spikes are short and steep, suggesting isolated outbreaks that were quickly controlled.
 
 
 ### c. Identify, to the best of your ability without a formal test, the first five states to experience Covid in a substantial way.
 
 ```{r}
+# made a new data set to only include states with 30+ (substantial) cases per 100k between april and june 2020
+start_date <- as.Date("2020-04-01")
+end_date <- as.Date("2020-06-01")
+covid_apr_jun <- covid_cases[covid_cases$date >= start_date & covid_cases$date < end_date, ]
+states_to_keep <- unique(covid_apr_jun$state[covid_apr_jun$cases_avg_per_100k >= 30])
+covid_2020_filtered <- covid_cases[covid_cases$date < end_date & covid_cases$state %in% states_to_keep, ]
 
+ggplot(covid_2020_filtered, aes(x = date, y = cases_avg_per_100k, color = state)) +
+  geom_line(alpha = 0.5) +
+  labs(
+    title = "COVID-19 Average Cases per 100k (2020) – High Impact States",
+    x = "Date",
+    y = "Cases per 100k",
+    color = "State"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b")
 ```
 
 
-Template
-
-```{r}
-
-```
-
+After trialing with so many graphs, I made a new data set to only include states with 30+ (substantial) cases per 100k between April and June 2020. The spikes started happening around that time, so I picked the date and number of cases per 100k based on that.
+The first five states to experience Covid in a substantial way were New York, New Jersey, Louisiana, Guam and Rhaode Island. Massachusetts and Connecticut were very close, but I would consider them in the 6th and seventh positions. 
 
