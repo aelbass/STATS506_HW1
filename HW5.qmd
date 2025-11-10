@@ -1,0 +1,208 @@
+---
+title: "HW5"
+format: html
+editor: visual
+---
+
+### Github URL: https://github.com/aelbass/STATS506_HW1.git
+
+## Problem 1
+
+### a. Create a class to represent Wald-style normal approximation Confidence Intervals
+
+```{r}
+# Define the S4 class
+setClass(
+  "waldCI",
+  slots = list(
+    mean = "numeric",
+    sterr = "numeric",
+    level = "numeric",
+    lb = "numeric",
+    ub = "numeric"
+  ),
+  validity = function(object) {
+    if (object@level <= 0 || object@level >= 1)
+      return("Confidence level must be between 0 and 1.")
+    if (object@sterr < 0)
+      return("Standard error must be non-negative.")
+    if (object@lb >= object@ub)
+      return("Lower bound must be less than upper bound.")
+    TRUE
+  }
+)
+
+# Custom Constructor
+createWaldCI <- function(level, mean = NA, sterr = NA, lb = NA, ub = NA) {
+  # Check confidence level first
+  if (level <= 0 || level >= 1) stop("Confidence level must be between 0 and 1.")
+
+  # Case 1: mean and sterr provided
+  if (!is.na(mean) && !is.na(sterr)) {
+    if (sterr < 0) stop("Standard error must be non-negative.")
+    z <- qnorm(1 - (1 - level) / 2)
+    lb <- mean - z * sterr
+    ub <- mean + z * sterr
+  } 
+  # Case 2: lower and upper bounds provided
+  else if (!is.na(lb) && !is.na(ub)) {
+    if (!is.finite(lb) || !is.finite(ub)) stop("Bounds must be finite.")
+    if (lb > ub) stop("Lower bound cannot be greater than upper bound.")
+    mean <- (lb + ub) / 2
+    z <- qnorm(1 - (1 - level) / 2)
+    sterr <- (ub - mean) / z
+  } 
+  else {
+    stop("Provide either (mean, sterr) or (lb, ub).")
+  }
+
+  # Create object
+  obj <- new("waldCI", mean = mean, sterr = sterr, level = level, lb = lb, ub = ub)
+  validObject(obj)
+  obj
+}
+
+# ShowMethod
+setMethod("show", "waldCI", function(object) {
+  cat("Wald-style Confidence Interval (Normal Approximation)\n")
+  cat(sprintf("Level: %.1f%%\n", object@level * 100))
+  cat(sprintf("Mean: %.4f  SE: %.4f\n", object@mean, object@sterr))
+  cat(sprintf("CI: [%.4f, %.4f]\n", object@lb, object@ub))
+})
+
+# Accessors
+setGeneric("lb", function(object) standardGeneric("lb"))
+setMethod("lb", "waldCI", function(object) object@lb)
+
+setGeneric("ub", function(object) standardGeneric("ub"))
+setMethod("ub", "waldCI", function(object) object@ub)
+
+setMethod("mean", "waldCI", function(x, ...) x@mean)
+
+setGeneric("sterr", function(object) standardGeneric("sterr"))
+setMethod("sterr", "waldCI", function(object) object@sterr)
+
+# Setters
+setGeneric("level", function(object) standardGeneric("level"))
+setMethod("level", "waldCI", function(object) object@level)
+setGeneric("lb<-", function(object, value) standardGeneric("lb<-"))
+setReplaceMethod("lb", "waldCI", function(object, value) {
+  object@lb <- value
+  validObject(object)
+  object
+})
+
+setGeneric("ub<-", function(object, value) standardGeneric("ub<-"))
+setReplaceMethod("ub", "waldCI", function(object, value) {
+  object@ub <- value
+  validObject(object)
+  object
+})
+
+setGeneric("mean<-", function(x, value) standardGeneric("mean<-"))
+setReplaceMethod("mean", "waldCI", function(x, value) {
+  x@mean <- value
+  validObject(x)
+  x
+})
+
+setGeneric("sterr<-", function(object, value) standardGeneric("sterr<-"))
+setReplaceMethod("sterr", "waldCI", function(object, value) {
+  object@sterr <- value
+  validObject(object)
+  object
+})
+
+setGeneric("level<-", function(object, value) standardGeneric("level<-"))
+setReplaceMethod("level", "waldCI", function(object, value) {
+  object@level <- value
+  validObject(object)
+  object
+})
+
+# A contains method
+setGeneric("contains", function(object, value) standardGeneric("contains"))
+setMethod("contains", signature("waldCI", "numeric"),
+          function(object, value) {
+            value >= object@lb & value <= object@ub
+          })
+
+# An overlap method
+setGeneric("overlap", function(ci1, ci2) standardGeneric("overlap"))
+setMethod("overlap", signature("waldCI", "waldCI"),
+          function(ci1, ci2) {
+            !(ci1@ub < ci2@lb || ci2@ub < ci1@lb)
+          })
+
+# as.numeric
+setMethod("as.numeric", "waldCI",
+          function(x) c(x@lb, x@ub))
+
+# Transform CI
+setGeneric("transformCI", function(object, f) standardGeneric("transformCI"))
+setMethod("transformCI", signature("waldCI", "function"),
+          function(object, f) {
+            warning("Only monotonic transformations preserve interval meaning.")
+            new_lb <- f(object@lb)
+            new_ub <- f(object@ub)
+            new_mean <- f(object@mean)
+            createWaldCI(level = object@level, lb = new_lb, ub = new_ub)
+          })
+```
+
+
+### b. Evaluate the code
+
+```{r}
+ci1 <- createWaldCI(level = 0.95, lb = 17.2, ub = 24.7)
+ci2 <- createWaldCI(level = 0.99, mean = 13, sterr = 2.5)
+ci3 <- createWaldCI(level = 0.75, lb = 27.43, ub = 39.22)
+
+ci1
+ci2
+ci3
+as.numeric(ci1)
+as.numeric(ci2)
+as.numeric(ci3)
+lb(ci2)
+ub(ci2)
+mean(ci1)
+sterr(ci3)
+level(ci2)
+lb(ci2) <- 10.5
+mean(ci3) <- 34
+level(ci3) <- .8
+contains(ci1, 17)
+contains(ci3, 44)
+overlap(ci1, ci2)
+eci1 <- transformCI(ci1, sqrt)
+eci1
+mean(transformCI(ci2, log))
+```
+
+### c. Show that your validator does not allow the creation of invalid confidence intervals
+
+```{r}
+#negative standard error
+try(ci_invalid1 <- createWaldCI(level = 0.95, mean = 10, sterr = -2))
+
+# lb > ub
+try(ci_invalid2 <- createWaldCI(level = 0.95, lb = 20, ub = 15))
+
+# Infinite bounds
+try(ci_invalid3 <- createWaldCI(level = 0.95, lb = -Inf, ub = 15))
+
+# invalid use of the setters
+ci_valid <- createWaldCI(level = 0.95, mean = 10, sterr = 2)
+try(level(ci_valid) <- 1.5)
+```
+
+Just a note, I add the righ error messages to the custom constructor instead of just having them in the validty for the class creation, so the right messages appear accordingly without triggering earlier errors ahead.
+
+
+xxx
+
+```{r}
+
+```
+
