@@ -239,15 +239,118 @@ p
 
 From plotting date versus reported cases as shown above, I would say that there are 3 minor (~ April 2020, July 2020 and April 2021) spikes and 4 major spikes (~ Jan. 2021, Aug. 2021, Jan 2022 and June 2022).
 
+
 ### b. For the states with the highest and lowest overall rates per population, what differences do you see in their trajectories over time?
 
 ```{r}
+covid_state <- covid_cases %>%
+  group_by(state) %>%
+  summarize(total = sum(cases_avg_per_100k, na.rm = TRUE)) %>%
+  ungroup()
 
+# Identify min and max
+min_val <- min(covid_state$total)
+max_val <- max(covid_state$total)
+
+covid_state <- covid_state %>%
+  mutate(
+    highlight = ifelse(total == min_val | total == max_val, TRUE, FALSE),
+    label_pos = ifelse(total > mean(total), total + 500, total - 500),  # mimic nudge_x
+    label_anchor = ifelse(total > mean(total), "left", "right")         # mimic hjust
+  )
+
+# Build plot
+plot_ly(covid_state) %>%
+  add_markers(
+    x = ~total,
+    y = ~state,
+    color = ~highlight,
+    colors = c("gray", "red"),
+    marker = list(size = 10),
+    hoverinfo = "text",
+    text = ~paste0(state, "<br>Total: ", round(total))
+  ) %>%
+  add_text(
+    x = ~label_pos,
+    y = ~state,
+    text = ~state,
+    textposition = ~label_anchor,
+    showlegend = FALSE
+  ) %>%
+  layout(
+    title = "Total COVID Cases per 100k (Jan 2020 – Mar 2023)",
+    xaxis = list(title = "Total COVID cases per 100k"),
+    yaxis = list(title = "", showticklabels = FALSE),
+    showlegend = FALSE
+  )
+
+covid_filtered <- covid_cases %>%
+  filter(state %in% c("Maine", "Rhode Island")) %>%
+  mutate(date = as.Date(date))
+
+p2 <- plot_ly(covid_filtered, 
+             x = ~date, 
+             y = ~cases_avg_per_100k, 
+             color = ~state, 
+             type = 'scatter', 
+             mode = 'lines+markers',
+             hoverinfo = 'text',
+             text = ~paste("State:", covid_filtered$state,
+                           "<br>Date:", date,
+                           "<br>Cases:", cases_avg_per_100k)) %>%
+  layout(
+    title = "COVID Cases per 100k",
+    xaxis = list(title = "Date", type = "date"),
+    yaxis = list(title = "Cases per 100k")
+  )
+
+# Display the plot
+p2
 ```
 
-xxx
+From here we see that Maine and Rhode Island have the lowest and highest overall count, respectively, per population. Cases in Maine were very consistent over the entire period, while a huge spike hit Rhode Island in winter 21-22.
+
+### c. Identify, to the best of your ability without a formal test, the first five states to experience Covid in a substantial way.
 
 ```{r}
+library(scales)
 
+# Filter data: April to June 2020
+start_date <- as.Date("2020-04-01")
+end_date <- as.Date("2020-06-01")
+covid_apr_jun <- covid_cases %>%
+  filter(date >= start_date & date < end_date)
+
+# Keep states with cases_avg_per_100k >= 30 during this period
+states_to_keep <- unique(covid_apr_jun$state[covid_apr_jun$cases_avg_per_100k >= 30])
+
+covid_2020_filtered <- covid_cases %>%
+  filter(date < end_date & state %in% states_to_keep)
+
+# Create Plotly interactive line plot
+p3 <- plot_ly(covid_2020_filtered,
+             x = ~date,
+             y = ~cases_avg_per_100k,
+             color = ~state,
+             type = 'scatter',
+             mode = 'lines',
+             line = list(width = 2),
+             hoverinfo = 'text',
+             text = ~paste("State:", state,
+                           "<br>Date:", date,
+                           "<br>Cases:", cases_avg_per_100k)) %>%
+  layout(
+    title = "COVID-19 Average Cases per 100k (2020) – High Impact States",
+    xaxis = list(title = "Date",
+                 type = "date",
+                 tickformat = "%b",
+                 dtick = "M1"),   # monthly ticks
+    yaxis = list(title = "Cases per 100k"),
+    legend = list(title = list(text = "State"), orientation = "v")  # legend on right
+  )
+
+# Display the plot
+p3
 ```
 
+I made a new data set to only include states with 30+ (substantial) cases per 100k between April and June 2020. The spikes started happening around that time, so I picked the date and number of cases per 100k based on that. The first five states to experience Covid in a substantial way were New York, New Jersey, Louisiana, Guam and Rhaode Island. Massachusetts and Connecticut were very close, but I would consider them in the 6th and seventh positions.
