@@ -200,6 +200,51 @@ try(level(ci_valid) <- 1.5)
 Just a note, I add the righ error messages to the custom constructor instead of just having them in the validty for the class creation, so the right messages appear accordingly without triggering earlier errors ahead.
 
 
+## Problem 2
+
+### a. How many major and minor spikes in cases were there?
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(readr)
+covid_cases <- read_csv("us-states.csv")
+covid_cases <- covid_cases %>%
+  mutate(date = as.Date(date))
+
+library(plotly)
+p <- plot_ly(
+  data = covid_cases,
+  x = ~date,
+  y = ~cases_avg_per_100k,
+  color = ~state,
+  type = "scatter",
+  mode = "markers",
+  marker = list(size = 3, opacity = 0.5)
+)
+
+# Add layout
+p <- layout(
+  p,
+  title = list(
+    text = "COVID-19 Case Trends Across U.S. States"
+  ),
+  xaxis = list(title = "Date"),
+  yaxis = list(title = "Cases per 100k"),
+  legend = list(title = list(text = "State")),
+  showlegend = FALSE
+)
+p
+```
+
+From plotting date versus reported cases as shown above, I would say that there are 3 minor (~ April 2020, July 2020 and April 2021) spikes and 4 major spikes (~ Jan. 2021, Aug. 2021, Jan 2022 and June 2022).
+
+### b. For the states with the highest and lowest overall rates per population, what differences do you see in their trajectories over time?
+
+```{r}
+
+```
+
 xxx
 
 ```{r}
