@@ -45,13 +45,133 @@ C_moment(x, 4)
 moment(x, order = 4, center = TRUE)
 ```
 
+## Problem 4
 
-
-
-XXX
+### a. How many tournaments took place in 2019
 
 ```{r}
+library(data.table)
+
+atp <- fread("atp_matches_2019.csv")
+
+atp[, year := substr(tourney_id, 1, 4)
+    ][year == "2019",
+      .(tournaments_2019 = uniqueN(tourney_id))]
+```
+
+### b. Did any player win more than one tournament? If so, how many players won more than one tournament, and how many tournaments did the most winning player(s) win?
+
+```{r}
+tournament_winners <- atp[
+  , .SD[which.max(match_num)],
+  by = tourney_id
+][
+  , .(tourney_id, winner_name)
+]
+
+player_wins <- tournament_winners[
+  , .(tournaments_won = .N),
+  by = winner_name
+][
+  order(-tournaments_won)
+]
+
+players_more_than_one <- player_wins[tournaments_won > 1]
+num_players_more_than_one <- nrow(players_more_than_one)
+max_tournaments_won <- max(player_wins$tournaments_won)
+
+num_players_more_than_one
+max_tournaments_won
+```
+
+Yes, 17 players won more than one tournament. The most winning player won 9 tournaments, and that was Rafael Nadal.
+
+### c. Is there any evidence that winners have more aces than losers? (If you address this with a hypothesis test, do not use base R functionality - continue to remain in the Tidyverse.)
+
+```{r}
+aces_data <- melt(
+  atp,
+  measure.vars = c("w_ace", "l_ace"),
+  variable.name = "player_type",
+  value.name = "aces"
+)[
+  , player_type := fifelse(player_type == "w_ace", "Winner", "Loser")
+]
+
+# 2. Summary statistics by player_type
+aces_summary <- aces_data[
+  , .(
+      mean_aces   = mean(aces, na.rm = TRUE),
+      median_aces = median(aces, na.rm = TRUE),
+      sd_aces     = sd(aces, na.rm = TRUE),
+      n           = .N
+    ),
+  by = player_type
+]
+
+aces_summary
+```
+
+Winners tend to average more aces than losers. Also here is a null hypothesis test that there is no difference in the mean number of aces between winners and losers.
+
+```{r}
+library(broom)
+
+DT <- as.data.table(aces_data)
+
+ace_list <- DT[
+  , .(aces_list = list(aces)),
+  by = player_type
+]
+
+tt <- t.test(
+  ace_list[player_type == "Winner", aces_list][[1]],
+  ace_list[player_type == "Loser", aces_list][[1]],
+  var.equal = FALSE
+)
+
+ace_tidytest <- tidy(tt)
+
+ace_tidytest
 
 ```
 
+And since p \< 0.05, there’s evidence that winners tend to serve more aces.
 
+
+### d. Identify the player(s) with the highest win-rate. Restrict to players with at least 5 matches.
+
+
+```{r}
+
+DT1 <- as.data.table(atp)
+
+player_stats <- melt(
+  DT1,
+  measure.vars = c("winner_name", "loser_name"),
+  variable.name = "result",
+  value.name = "player"
+)[
+
+  , is_win := fifelse(result == "winner_name", 1L, 0L)
+]
+
+player_summary <- player_stats[
+  , .(
+      matches  = .N,
+      wins     = sum(is_win),
+      win_rate = sum(is_win) / .N
+    ),
+  by = player
+][
+  matches >= 5
+][
+  order(-win_rate)
+]
+
+best_players <- player_summary[win_rate == max(win_rate)]
+
+best_players
+```
+
+Rafael Nadal is has the highest win rate, \~87%. He played 69 games.
