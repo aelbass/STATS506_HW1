@@ -1,0 +1,57 @@
+---
+title: "HW6"
+format: html
+editor: visual
+---
+
+### Github URL: https://github.com/aelbass/STATS506_HW1.git
+
+## Problem 1
+
+```{r}
+library(e1071)
+library(Rcpp)
+
+cppFunction("
+double C_moment(NumericVector v, int k) {
+  int n = v.size();
+  double mean = 0.0;
+
+  for (int i = 0; i < n; ++i) {
+    mean += v[i];
+  }
+  mean /= n;
+
+  // compute k-th central moment
+  double total = 0.0;
+  for (int i = 0; i < n; ++i) {
+    total += pow(v[i] - mean, k);
+  }
+
+  return total / n;
+}
+")
+
+set.seed(7)
+x <- rnorm(1000)
+
+C_moment(x, 2)
+moment(x, order = 2, center = TRUE)
+
+C_moment(x, 3)
+moment(x, order = 3, center = TRUE)
+
+C_moment(x, 4)
+moment(x, order = 4, center = TRUE)
+```
+
+
+
+
+XXX
+
+```{r}
+
+```
+
+
