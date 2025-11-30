@@ -1,0 +1,122 @@
+---
+title: "Final Project"
+author: "Abdalla Elbassiouny"
+format: html
+editor: visual
+ include-in-header:
+      text: |
+        <style>
+        body { font-size: 14px; }
+        h1 { font-size: 1.4em !important; }
+        h2 { font-size: 1.2em !important; }
+        h3 { font-size: 1.05em !important; }
+        </style>
+---
+
+## Introduction
+The dataset comes from a professional soccer league database, containing match-level information and player attributes. Each match records the players on the field, team goals, and other match metadata. The player attributes include characteristics such as preferred_foot and potential. For this analysis, a logistic regression model was used to explore whether certain team compositions influence the probability of winning a match. Logistic regression is appropriate because the outcome variable—whether a team won or lost—is binary.
+
+## Research Question
+The central research question is: Is there evidence that the team with a higher percentage of left-footed players with potential greater than 70 has a higher probability of winning?
+
+## Approach
+	1.	Data Preparation:
+	•	Player IDs from the match table were linked to their attributes using the Player_Attributes table.
+	•	For each team in each match, the number and percentage of left-footed players with potential above 70 were calculated.
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(RSQLite)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+# connect to the database
+db <- dbConnect(RSQLite::SQLite(), "database.sqlite")
+
+Match <- dbReadTable(db, "Match")
+PlayerAttr <- dbReadTable(db, "Player_Attributes")
+
+match_long <- Match %>%
+  pivot_longer(
+    cols = matches("^(home|away)_player_[0-9]+$"),
+    names_to = c("team", "player_number"),
+    names_pattern = "(home|away)_player_(\\d+)",
+    values_to = "player_id"
+  )
+
+match_players_only <- match_long %>%
+  select(id, match_api_id, team, player_number, player_id)
+
+match_players <- match_long %>%
+  left_join(PlayerAttr %>% select(id, preferred_foot, potential),
+            by = c("player_id" = "id"))
+
+team_stats <- match_players %>%
+  group_by(match_api_id, team) %>%
+  summarise(
+    total_players = sum(!is.na(player_id)),
+    left_footed_high_potential = sum(preferred_foot == "left" & potential > 70, na.rm = TRUE),
+    pct_left_high_potential = (left_footed_high_potential / total_players)*100
+  )
+
+match_results <- Match %>%
+  mutate(
+    home_win = home_team_goal > away_team_goal,
+    away_win = away_team_goal > home_team_goal
+  ) %>%
+  select(match_api_id, home_win, away_win)
+
+team_outcomes <- match_results %>%
+  pivot_longer(cols = c(home_win, away_win),
+               names_to = "team",
+               values_to = "win") %>%
+  mutate(team = ifelse(team == "home_win", "home", "away"))
+
+model_data <- team_stats %>%
+  left_join(team_outcomes, by = c("match_api_id", "team"))
+```
+	
+	2.	Descriptive Analysis:
+	•	Summary statistics and visualizations examined the distribution of left-footed, high-potential players across winning and losing teams.
+	•	A logistic regression model was fitted with match outcome (win/loss) as the dependent variable and the team percentage of left-footed high-potential players as the predictor.
+	•	A boxplot to compare the distribution of the percentage of left-footed, high-potential players between won and lost matches was created.
+## Results
+	•	The model coefficient for the predictor was positive but not statistically significant (p = 0.114).
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+model <- glm(
+  win ~ pct_left_high_potential,
+  data = model_data,
+  family = binomial
+)
+
+coef_summary <- summary(model)$coefficients
+
+estimate <- coef_summary["pct_left_high_potential", "Estimate"]
+p_value  <- coef_summary["pct_left_high_potential", "Pr(>|z|)"]
+
+estimate
+p_value
+```
+	•	The boxplot's similar distributions indicate that winning teams do not consistently field a higher proportion of such players—consistent with the non-significant logistic regression result.
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+ggplot(model_data, aes(x = factor(win), y = pct_left_high_potential)) +
+  geom_boxplot() +
+  labs(
+    x = "Match Result (False = Loss, True = Win)",
+    y = "% Left-Footed High-Potential Players",
+    title = "Distribution of % Left-Foot High-Potential Players by Match Result"
+  )
+```
+
+## Conclusion
+Overall, the analysis found no statistically significant evidence that teams with a higher percentage of left-footed players with potential above 70 are more likely to win a match. Although the logistic regression coefficient was positive, the effect was not strong enough to support a meaningful relationship. Descriptive patterns and visualizations similarly showed substantial overlap between winning and losing teams.
