@@ -127,7 +127,6 @@ makeBootstrapCI <- function(fn, data, reps = 1000,
   # Create waldCI first
   parent_ci <- makeCI(level = level, mean = m, sterr = s)
 
-  # Then wrap it in bootstrapWaldCI
   new("bootstrapWaldCI",
       level = parent_ci@level,
       mean = parent_ci@mean,
@@ -160,7 +159,6 @@ setMethod("rebootstrap", "bootstrapWaldCI",
             m <- mean(newvals)
             s <- sd(newvals)
 
-            # update and validate via makeCI
             parent_ci <- makeCI(level = object@level,
                                 mean = m,
                                 sterr = s)
@@ -241,9 +239,104 @@ ci_parallel
 rebootstrap(ci_serial)
 rebootstrap(ci_parallel)
 ```
-For timing comparison, the parallel computation is taking more time due to overhead from setting up parallel workers. And again, the computed CIs for serial vs parallel are statistically similar but not identical, because bootstrap sampling introduces randomness.
+For timing comparison, the parallel computation is taking slightly more time to process due to overhead from setting up parallel workers. And again, the computed CIs for serial vs parallel are statistically similar but not identical, because bootstrap sampling introduces randomness.
 
+## Problem 3
 
+### a.
+
+```{r}
+source("artificial_data.R")
+
+library(dplyr)
+library(lme4)
+library(ggplot2)
+library(purrr)
+
+df_std <- df %>%
+  group_by(country) %>%
+  mutate(
+    prior_GPA_std    = scale(prior_gpa),
+    forum_posts_std  = scale(forum_posts),
+    quiz_attempts_std = scale(quiz_attempts)
+  ) %>%
+  ungroup()
+
+countries <- unique(df_std$country)
+
+results <- list()
+times <- numeric(length(countries))
+
+for (i in seq_along(countries)) {
+  ctry <- countries[i]
+  data_ctry <- df_std %>% filter(country == ctry)
+  
+  cat("Fitting model for country:", ctry, "\n")
+  
+  t <- system.time({
+    fit <- glmer(
+      completed_course ~ prior_GPA_std + forum_posts_std + quiz_attempts_std + 
+        (1 | device_type),
+      data = data_ctry,
+      family = binomial
+    )
+  })
+  
+  results[[ctry]] <- fit
+  times[i] <- t["elapsed"]
+}
+
+names(times) <- countries
+times
+
+#' Extract Forum Posts Coefficient from a Model
+#'
+#' This function extracts the coefficient corresponding to `forum_posts_std`
+#' from a model object.
+#'
+#' @param model A fitted model object (`glmerMod` or `glm`) or `NULL`.
+#' @return Numeric scalar: the coefficient of `forum_posts_std`, or `NA` if unavailable.
+#' @export
+get_forum_coef <- function(model) {
+  if (is.null(model)) return(NA_real_)
+  
+  if (inherits(model, "glmerMod")) {
+    coefs <- fixef(model)
+  } else if (inherits(model, "glm")) {
+    coefs <- coef(model)
+  } else {
+    return(NA_real_)
+  }
+  
+  # Return numeric value only, remove name
+  if ("forum_posts_std" %in% names(coefs)) {
+    return(as.numeric(coefs["forum_posts_std"]))
+  } else {
+    return(NA_real_)
+  }
+}
+
+names(results) <- countries
+
+coef_forum <- sapply(results, get_forum_coef, USE.NAMES = TRUE)
+
+coef_df <- data.frame(
+  country = names(coef_forum),
+  forum_posts_coef = coef_forum
+)
+
+coef_df
+
+ggplot(coef_df, aes(x = country, y = forum_posts_coef)) +
+  geom_col(fill = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Estimated Coefficient for Forum Posts by Country",
+    x = "Country",
+    y = "Coefficient (Standardized)"
+  ) +
+  theme_minimal()
+```
 ## Problem 4
 
 ### a. How many tournaments took place in 2019
@@ -371,4 +464,4 @@ best_players <- player_summary[win_rate == max(win_rate)]
 best_players
 ```
 
-Rafael Nadal is has the highest win rate, \~87%. He played 69 games.
+Rafael Nadal is has the highest win rate, ~87%. He played 69 games.
