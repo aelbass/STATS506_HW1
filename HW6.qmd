@@ -45,6 +45,205 @@ C_moment(x, 4)
 moment(x, order = 4, center = TRUE)
 ```
 
+## Problem 2
+
+### a. 
+
+```{r}
+#' Load waldCI class
+source("waldCI.R")
+
+#' bootstrapWaldCI class
+#'
+#' Extension of waldCI that stores data and bootstrap results.
+#' @slot data The dataset to be resampled.
+#' @slot fn A function applied to each bootstrap sample, returning a scalar.
+#' @slot reps Number of bootstrap resamples.
+#' @slot compute Either "serial" or "parallel".
+#' @slot bootvals Numeric vector of bootstrap estimates.
+#' @export
+setClass("bootstrapWaldCI",
+         slots = c(
+           data = "ANY",
+           fn = "function",
+           reps = "numeric",
+           compute = "character",
+           bootvals = "numeric"
+         ),
+         contains = "waldCI")
+
+.bootstrap_do <- function(fn, data, reps, compute = "serial") {
+
+  n <- nrow(data)
+
+  if (compute == "serial") {
+
+    out <- replicate(reps, {
+      idx <- sample(seq_len(n), n, replace = TRUE)
+      fn(data[idx, , drop = FALSE])
+    })
+
+  } else if (compute == "parallel") {
+
+    library(parallel)
+    cl <- makeCluster(detectCores() - 1)
+    clusterExport(cl, varlist = c("data", "fn"), envir = environment())
+
+    out <- parSapply(cl, 1:reps, function(i) {
+      idx <- sample(seq_len(n), n, replace = TRUE)
+      fn(data[idx, , drop = FALSE])
+    })
+    stopCluster(cl)
+
+  } else {
+    stop("compute must be 'serial' or 'parallel'")
+  }
+
+  return(out)
+}
+
+#' Construct a bootstrapWaldCI object
+#'
+#' @param fn A function that takes a data set and returns a scalar.
+#' @param data The data frame to bootstrap.
+#' @param reps Number of bootstrap replicates.
+#' @param level CI confidence level.
+#' @param compute "serial" or "parallel".
+#'
+#' @return A bootstrapWaldCI object.
+#' @export
+makeBootstrapCI <- function(fn, data, reps = 1000,
+                            level = 0.95,
+                            compute = "serial") {
+
+  stopifnot(is.function(fn))
+  stopifnot(is.numeric(reps))
+
+  bootvals <- .bootstrap_do(fn, data, reps, compute)
+
+  m <- mean(bootvals)
+  s <- sd(bootvals)
+
+  # Create waldCI first
+  parent_ci <- makeCI(level = level, mean = m, sterr = s)
+
+  # Then wrap it in bootstrapWaldCI
+  new("bootstrapWaldCI",
+      level = parent_ci@level,
+      mean = parent_ci@mean,
+      sterr = parent_ci@sterr,
+      data = data,
+      fn = fn,
+      reps = reps,
+      compute = compute,
+      bootvals = bootvals)
+}
+
+#' Recompute bootstrap for a bootstrapWaldCI object
+#'
+#' @param object A bootstrapWaldCI object
+#' @return Updated bootstrapWaldCI with new bootstrap samples
+#' @export
+setGeneric("rebootstrap", function(object) {
+  standardGeneric("rebootstrap")
+})
+
+#' @export
+setMethod("rebootstrap", "bootstrapWaldCI",
+          function(object) {
+
+            newvals <- .bootstrap_do(object@fn,
+                                     object@data,
+                                     object@reps,
+                                     object@compute)
+
+            m <- mean(newvals)
+            s <- sd(newvals)
+
+            # update and validate via makeCI
+            parent_ci <- makeCI(level = object@level,
+                                mean = m,
+                                sterr = s)
+
+            object@mean <- parent_ci@mean
+            object@sterr <- parent_ci@sterr
+            object@bootvals <- newvals
+
+            validObject(object)
+            return(object)
+          })
+```
+
+
+### b. 
+```{r}
+ci1 <- makeBootstrapCI(function(x) mean(x$y),
+                       ggplot2::diamonds,
+                       reps = 1000)
+ci1
+rebootstrap(ci1)
+
+system.time(
+  ci_serial <- makeBootstrapCI(function(x) mean(x$y),
+                  ggplot2::diamonds,
+                  reps = 5000,
+                  compute = "serial")
+)
+
+system.time(
+  ci_parallel <- makeBootstrapCI(function(x) mean(x$y),
+                  ggplot2::diamonds,
+                  reps = 5000,
+                  compute = "parallel")
+)
+
+rebootstrap(ci_serial)
+rebootstrap(ci_parallel)
+```
+
+In timing experiments with 5000 bootstrap replications on the diamonds data set, the serial computation was roughly twice as fast as the parallel execution. The parallel advantage would be only evident as the number of replications increase because the overhead of spinning up workers becomes negligible compared to workload size. As for the stability, there is a very minor difference in the rebootstrap CI values due to the built-in randomness in the function. 
+
+### c.
+
+```{r}
+#' Extract the Coefficient of `disp` From a Linear Model
+#' This function fits the linear model: \deqn{mpg \sim cyl + disp + wt} to a user-supplied data frame.
+#' 
+#' @param dat A data frame containing at least the variables mentioned.
+#' @return A numeric scalar giving the estimated coefficient of `disp`
+#'   from the fitted linear model.
+#' @export
+
+dispCoef <- function(dat) {
+  # Fit the linear regression model
+  fit <- lm(mpg ~ cyl + disp + wt, data = dat)
+
+  coef(fit)[["disp"]]
+}
+
+ci2 <- makeBootstrapCI(dispCoef,
+                       mtcars,
+                       reps = 1000)
+ci2
+rebootstrap(ci2)
+
+system.time(
+  ci_serial <- makeBootstrapCI(dispCoef, mtcars, reps = 1000, compute = "serial")
+)
+
+system.time(
+  ci_parallel <- makeBootstrapCI(dispCoef, mtcars, reps = 1000, compute = "parallel")
+)
+
+ci_serial
+ci_parallel
+
+rebootstrap(ci_serial)
+rebootstrap(ci_parallel)
+```
+For timing comparison, the parallel computation is taking more time due to overhead from setting up parallel workers. And again, the computed CIs for serial vs parallel are statistically similar but not identical, because bootstrap sampling introduces randomness.
+
+
 ## Problem 4
 
 ### a. How many tournaments took place in 2019
@@ -138,9 +337,7 @@ ace_tidytest
 
 And since p \< 0.05, there’s evidence that winners tend to serve more aces.
 
-
 ### d. Identify the player(s) with the highest win-rate. Restrict to players with at least 5 matches.
-
 
 ```{r}
 
