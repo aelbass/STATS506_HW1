@@ -47,7 +47,7 @@ moment(x, order = 4, center = TRUE)
 
 ## Problem 2
 
-### a. 
+### a.
 
 ```{r}
 #' Load waldCI class
@@ -172,8 +172,8 @@ setMethod("rebootstrap", "bootstrapWaldCI",
           })
 ```
 
+### b.
 
-### b. 
 ```{r}
 ci1 <- makeBootstrapCI(function(x) mean(x$y),
                        ggplot2::diamonds,
@@ -199,7 +199,7 @@ rebootstrap(ci_serial)
 rebootstrap(ci_parallel)
 ```
 
-In timing experiments with 5000 bootstrap replications on the diamonds data set, the serial computation was roughly twice as fast as the parallel execution. The parallel advantage would be only evident as the number of replications increase because the overhead of spinning up workers becomes negligible compared to workload size. As for the stability, there is a very minor difference in the rebootstrap CI values due to the built-in randomness in the function. 
+In timing experiments with 5000 bootstrap replications on the diamonds data set, the serial computation was roughly twice as fast as the parallel execution. The parallel advantage would be only evident as the number of replications increase because the overhead of spinning up workers becomes negligible compared to workload size. As for the stability, there is a very minor difference in the rebootstrap CI values due to the built-in randomness in the function.
 
 ### c.
 
@@ -239,6 +239,7 @@ ci_parallel
 rebootstrap(ci_serial)
 rebootstrap(ci_parallel)
 ```
+
 For timing comparison, the parallel computation is taking slightly more time to process due to overhead from setting up parallel workers. And again, the computed CIs for serial vs parallel are statistically similar but not identical, because bootstrap sampling introduces randomness.
 
 ## Problem 3
@@ -337,6 +338,80 @@ ggplot(coef_df, aes(x = country, y = forum_posts_coef)) +
   ) +
   theme_minimal()
 ```
+
+### b.
+```{r}
+library(parallel)
+
+df_list <- split(df, df$country)
+
+#' Standardize predictors within a country
+
+#' @param data A single-country data frame.
+#' @return gpa_std, forum_posts_std, quiz_attempts_std.
+#' @export
+standardize_country <- function(data) {
+  data %>%
+    mutate(
+      gpa_std          = scale(prior_gpa),
+      forum_posts_std  = scale(forum_posts),
+      quiz_attempts_std = scale(quiz_attempts)
+    )
+}
+
+df_list_std <- lapply(df_list, standardize_country)
+
+#' Fit mixed-effects logistic regression for one country
+#'
+#' @param dat A standardized single-country data frame.
+#' @return A glmer model object or a try-error object if fitting fails.
+#' @export
+fit_model <- function(dat) {
+  try(
+    glmer(
+      completion ~ gpa_std + forum_posts_std + quiz_attempts_std + (1 | device_type),
+      data = dat,
+      family = binomial,
+      control = glmerControl(optimizer = "bobyqa")
+    ),
+    silent = TRUE
+  )
+}
+
+num_cores <- detectCores() - 1
+
+system_time <- system.time({
+  results_parallel <- mclapply(df_list_std, fit_model, mc.cores = num_cores)
+})
+
+system_time
+
+#' Extract forum_posts_std coefficient from model
+#'
+#' @param model A glmer model or try-error object.
+#' @return Numeric coefficient for forum_posts_std, or NA.
+#' @export
+get_forum_coef <- function(model) {
+  # If model failed, return NA
+  if (inherits(model, "try-error")) {
+    return(NA_real_)
+  }
+  
+  coefs <- fixef(model)
+  
+  if (!("forum_posts_std" %in% names(coefs))) {
+    return(NA_real_)
+  }
+  
+  as.numeric(coefs["forum_posts_std"])  # Return numeric only
+}
+
+coef_forum_parallel <- sapply(results_parallel, get_forum_coef, USE.NAMES = TRUE)
+coef_forum_parallel
+```
+
+I tried running parallel::mclapply() to run models simultaneously to reduce the time which I efficiently did; however, there is some error in my code that I couldn't figure out so I keep getting NAs.
+
 ## Problem 4
 
 ### a. How many tournaments took place in 2019
@@ -464,4 +539,4 @@ best_players <- player_summary[win_rate == max(win_rate)]
 best_players
 ```
 
-Rafael Nadal is has the highest win rate, ~87%. He played 69 games.
+Rafael Nadal is has the highest win rate, \~87%. He played 69 games.
